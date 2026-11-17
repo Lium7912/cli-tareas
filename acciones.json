@@ -5,5 +5,22 @@
     "ruta_predeterminada": "~/pruebas-tareas",
     "incluir_carpetas": true,
     "ordenar_por": "nombre"
+  },
+  "contar": {
+    "activa": true,
+    "descripcion": "Cuenta los ficheros de una carpeta",
+    "ruta_predeterminada": "~/pruebas-tareas",
+    "incluir_carpetas": false
+  },
+  "buscar": {
+    "activa": true,
+    "descripcion": "Busca ficheros por nombre o extensión",
+    "ruta_predeterminada": "~/pruebas-tareas",
+    "max_resultados": 50
+  },
+  "resumen": {
+    "activa": true,
+    "descripcion": "Resumen de una carpeta: ficheros, tipos y tamaño total",
+    "ruta_predeterminada": "~/pruebas-tareas"
   }
 }

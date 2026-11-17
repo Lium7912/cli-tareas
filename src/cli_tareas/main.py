@@ -4,21 +4,50 @@ import typer
 from rich.console import Console
 
 from cli_tareas import __version__
-from cli_tareas.listar import (
-    AccionDesactivadaError,
-    cargar_acciones,
-    construir_tabla,
-    obtener_config_listar,
-    obtener_entradas,
-    ordenar_entradas,
-    resolver_ruta,
+from cli_tareas.acciones import cargar_acciones, obtener_config
+from cli_tareas.buscar import (
+    buscar_entradas,
+    construir_tabla_busqueda,
+    limitar_resultados,
 )
+from cli_tareas.contar import construir_texto, contar_entradas
+from cli_tareas.excepciones import ErrorAccion
+from cli_tareas.ficheros import obtener_entradas, ordenar_entradas, resolver_ruta
+from cli_tareas.listar import construir_tabla
+from cli_tareas.resumen import calcular_resumen, construir_tabla_resumen
 
 app = typer.Typer(
     help="CLI para gestionar tareas asistidas por IA (DAM)",
     no_args_is_help=True,
 )
 consola = Console()
+
+ERRORES_PREPARACION = (ErrorAccion, FileNotFoundError, ValueError, TypeError)
+
+
+def _iniciar(
+    nombre: str,
+    ruta: Path | None,
+    simular: bool,
+    mensaje_simulacion: str,
+) -> tuple[dict, Path]:
+    """Carga la configuración de la acción y resuelve la ruta a tratar."""
+    try:
+        acciones = cargar_acciones()
+        config = obtener_config(nombre, acciones)
+        ruta_resuelta = resolver_ruta(config, ruta)
+    except ERRORES_PREPARACION as exc:
+        print(f"Error: {exc}")
+        raise typer.Exit(code=1) from exc
+    if simular:
+        print(f"[simulación] {mensaje_simulacion.format(ruta=ruta_resuelta)}")
+        raise typer.Exit()
+    return config, ruta_resuelta
+
+
+def _fallar(exc: Exception) -> typer.Exit:
+    print(f"Error: {exc}")
+    return typer.Exit(code=1)
 
 
 @app.command()
@@ -40,34 +69,114 @@ def listar(
     ),
 ) -> None:
     """Lista el contenido de una carpeta (nombre, tipo, tamaño y fecha)."""
-    try:
-        acciones = cargar_acciones()
-        config = obtener_config_listar(acciones)
-    except (
-        FileNotFoundError,
-        ValueError,
-        TypeError,
-        AccionDesactivadaError,
-    ) as exc:
-        print(f"Error: {exc}")
-        raise typer.Exit(code=1) from exc
-
-    ruta_resuelta = resolver_ruta(config, ruta)
+    config, ruta_resuelta = _iniciar(
+        "listar", ruta, simular, "Se listaría el contenido de: {ruta}"
+    )
     incluir_carpetas = bool(config.get("incluir_carpetas", True))
     ordenar_por = str(config.get("ordenar_por", "nombre"))
-
-    if simular:
-        print(f"[simulación] Se listaría el contenido de: {ruta_resuelta}")
-        return
-
     try:
         entradas = obtener_entradas(ruta_resuelta, incluir_carpetas)
         entradas = ordenar_entradas(entradas, ordenar_por)
-    except (FileNotFoundError, NotADirectoryError, PermissionError, ValueError) as exc:
-        print(f"Error: {exc}")
-        raise typer.Exit(code=1) from exc
+    except ErrorAccion as exc:
+        raise _fallar(exc) from exc
 
     consola.print(construir_tabla(entradas, ruta_resuelta))
+
+
+@app.command()
+def contar(
+    ruta: Path | None = typer.Argument(
+        None,
+        help="Carpeta a analizar; por defecto, la ruta_predeterminada de acciones.json",
+    ),
+    simular: bool = typer.Option(
+        False,
+        "--simular",
+        help="Ejecuta en modo simulación (sin efectos externos)",
+    ),
+) -> None:
+    """Cuenta los ficheros de una carpeta."""
+    config, ruta_resuelta = _iniciar(
+        "contar", ruta, simular, "Se contarían los ficheros de: {ruta}"
+    )
+    incluir_carpetas = bool(config.get("incluir_carpetas", False))
+    try:
+        conteo = contar_entradas(ruta_resuelta, incluir_carpetas)
+    except ErrorAccion as exc:
+        raise _fallar(exc) from exc
+
+    consola.print(construir_texto(conteo, ruta_resuelta))
+
+
+@app.command()
+def buscar(
+    ruta: Path | None = typer.Argument(
+        None,
+        help="Carpeta donde buscar; por defecto, la ruta_predeterminada de acciones.json",
+    ),
+    termino: str = typer.Option(
+        "",
+        "--termino",
+        help="Texto que debe contener el nombre del fichero",
+    ),
+    extension: str = typer.Option(
+        "",
+        "--extension",
+        help="Extensión a buscar, p. ej. .txt (se admite sin punto)",
+    ),
+    simular: bool = typer.Option(
+        False,
+        "--simular",
+        help="Ejecuta en modo simulación (sin efectos externos)",
+    ),
+) -> None:
+    """Busca ficheros por nombre o extensión."""
+    filtros = []
+    if termino:
+        filtros.append(f"nombre con «{termino}»")
+    if extension:
+        filtros.append(f"extensión {extension}")
+    detalle = f" ({', '.join(filtros)})" if filtros else ""
+    config, ruta_resuelta = _iniciar(
+        "buscar", ruta, simular, f"Se buscarían ficheros{detalle} en: {{ruta}}"
+    )
+    try:
+        resultados = buscar_entradas(ruta_resuelta, termino, extension)
+        max_resultados = config.get("max_resultados")
+        total = len(resultados)
+        resultados = limitar_resultados(resultados, max_resultados)
+    except ErrorAccion as exc:
+        raise _fallar(exc) from exc
+
+    consola.print(construir_tabla_busqueda(resultados, ruta_resuelta))
+    if max_resultados is not None and total > len(resultados):
+        consola.print(
+            f"[yellow]Mostrando {len(resultados)} de {total} resultados[/yellow]"
+        )
+
+
+@app.command()
+def resumen(
+    ruta: Path | None = typer.Argument(
+        None,
+        help="Carpeta a resumir; por defecto, la ruta_predeterminada de acciones.json",
+    ),
+    simular: bool = typer.Option(
+        False,
+        "--simular",
+        help="Ejecuta en modo simulación (sin efectos externos)",
+    ),
+) -> None:
+    """Resume una carpeta: nº de ficheros, tipos y tamaño total."""
+    _, ruta_resuelta = _iniciar(
+        "resumen", ruta, simular, "Se generaría el resumen de: {ruta}"
+    )
+    try:
+        datos = calcular_resumen(ruta_resuelta)
+    except ErrorAccion as exc:
+        raise _fallar(exc) from exc
+
+    consola.print(construir_tabla_resumen(datos, ruta_resuelta))
 
 
 if __name__ == "__main__":
