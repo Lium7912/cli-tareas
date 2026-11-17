@@ -51,8 +51,8 @@ Reglas para registrar prompts:
 ### Entrada 3.1 — Creación de `opencode.json` y sus permisos
 
 - **Fecha:** pendiente de documentar
-  (referencia verificable: el archivo existe en la raíz del repo pero **aún
-  no está versionado en git**).
+  (referencia verificable: el archivo está versionado en el commit `2e6061c`
+  con fecha 2026-11-17).
 - **Objetivo:** configurar los permisos de OpenCode para que las operaciones
   de edición y ejecución de comandos requieran autorización del usuario, y
   para denegar operaciones de git peligrosas y la lectura/edición de archivos
@@ -60,7 +60,7 @@ Reglas para registrar prompts:
 - **Texto del prompt:** pendiente de documentar.
 - **Modelo utilizado:** pendiente de documentar.
 - **Archivos afectados:** `opencode.json` (verificado: existe en la raíz del
-  repo, sin commit todavía).
+  repo, versionado en el commit `2e6061c`).
 - **Resultado obtenido:** verificado por el contenido actual de
   `opencode.json`, con el esquema de permisos siguiente:
 
@@ -157,3 +157,44 @@ Recordatorios al añadir entradas:
   conversación; creación del archivo pendiente de aprobación.
 - **Aprobación realizada por el usuario:** pendiente (esta entrada se
   actualizará cuando el usuario apruebe la creación del archivo).
+
+### Entrada 5.2 — Revisión de este documento (`docs/prompts.md`)
+
+- **Fecha:** 2026-11-17
+- **Objetivo:** revisar `docs/prompts.md`, ya creado y versionado en el
+  commit `2e6061c`, corregir datos desactualizados y registrar esta
+  intervención en el propio documento.
+- **Texto del prompt:**
+  > «Quiero continuar con el Proyecto 2 de DAM, una CLI llamada `tareas`,
+  > desarrollada con Python 3.12, uv y OpenCode 1.18.35.
+  > Necesito crear el archivo `docs/prompts.md` para documentar el
+  > desarrollo agéntico.
+  > Incluye:
+  > 1. Introducción y finalidad del registro.
+  > 2. Creación de AGENTS.md y las normas de seguridad.
+  > 3. Creación de opencode.json y configuración de permisos.
+  > 4. Comprobación de que OpenCode solicita aprobación para ejecutar comandos.
+  > 5. Plantilla para registrar futuros prompts.
+  > Para cada intervención importante, documenta:
+  > - Fecha, cuando sea conocida.
+  > - Objetivo.
+  > - Prompt utilizado, literalmente cuando esté disponible.
+  > - Modelo utilizado.
+  > - Archivos afectados.
+  > - Resultado.
+  > - Aprobación del usuario.
+  > Utiliza únicamente información verificable. No inventes prompts, fechas
+  > ni resultados. Si falta información, indícalo.
+  > No incluyas claves, contraseñas ni información privada.
+  > Primero muéstrame el contenido completo propuesto de docs/prompts.md.
+  > No crees ni modifiques archivos todavía. Espera mi aprobación.»
+- **Modelo utilizado:** GLM (`glm-5.3-flash-free`) mediante OpenCode 1.18.35.
+- **Archivos afectados:** `docs/prompts.md` (solo edición documental;
+  actualización de la entrada 3.1 y adición de esta entrada 5.2).
+- **Resultado obtenido:** verificado el estado del repositorio (3 commits:
+  `691d334`, `4527156`, `2e6061c`); corregida en la entrada 3.1 la
+  referencia al versionado de `opencode.json`, que ya está en el commit
+  `2e6061c`; añadida esta entrada 5.2.
+- **Aprobación realizada por el usuario:** tras revisar el contenido
+  propuesto en la conversación, el usuario eligió la opción «Actualizar»
+  entre las opciones ofrecidas (aplicar las dos correcciones mínimas).

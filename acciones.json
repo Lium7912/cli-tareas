@@ -1,0 +1,9 @@
+{
+  "listar": {
+    "activa": true,
+    "descripcion": "Lista el contenido de una carpeta",
+    "ruta_predeterminada": "~/pruebas-tareas",
+    "incluir_carpetas": true,
+    "ordenar_por": "nombre"
+  }
+}
