@@ -293,6 +293,50 @@ def test_clasificar_max_ficheros_invalido(
     assert "mayor que 0" in resultado.output
 
 
+@pytest.mark.parametrize("timeout", ["no-es-numero", "0"])
+def test_clasificar_timeout_invalido_texto(
+    carpeta_clasificar: Path,
+    env_ia,
+    monkeypatch: pytest.MonkeyPatch,
+    sin_red,
+    acciones_temporales,
+    timeout: str,
+) -> None:
+    monkeypatch.setenv("TAREAS_IA_TIMEOUT", timeout)
+    monkeypatch.setenv("TAREAS_API_KEY", "secreto-no-debe-aparecer")
+    acciones_temporales(
+        "clasificar",
+        {"activa": True, "ruta_predeterminada": str(carpeta_clasificar)},
+    )
+    resultado = runner.invoke(app, ["clasificar"])
+    assert resultado.exit_code == 1
+    assert "Traceback" not in resultado.output
+    assert "TAREAS_IA_TIMEOUT" in resultado.output
+    assert "secreto-no-debe-aparecer" not in resultado.output
+
+
+@pytest.mark.parametrize("timeout", ["no-es-numero", "0"])
+def test_clasificar_timeout_invalido_json(
+    carpeta_clasificar: Path,
+    env_ia,
+    monkeypatch: pytest.MonkeyPatch,
+    sin_red,
+    acciones_temporales,
+    timeout: str,
+) -> None:
+    monkeypatch.setenv("TAREAS_IA_TIMEOUT", timeout)
+    monkeypatch.setenv("TAREAS_API_KEY", "secreto-no-debe-aparecer")
+    acciones_temporales(
+        "clasificar",
+        {"activa": True, "ruta_predeterminada": str(carpeta_clasificar)},
+    )
+    resultado = runner.invoke(app, ["clasificar", "--json"])
+    assert resultado.exit_code == 1
+    assert "Traceback" not in resultado.output
+    assert "TAREAS_IA_TIMEOUT" in json.loads(resultado.output)["error"]
+    assert "secreto-no-debe-aparecer" not in resultado.output
+
+
 def test_clasificar_ia_categoria_invalida(
     carpeta_clasificar: Path,
     env_ia,

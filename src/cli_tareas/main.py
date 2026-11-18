@@ -25,7 +25,11 @@ from cli_tareas.describir import (
     construir_tabla_descripciones,
     describir_determinista,
 )
-from cli_tareas.excepciones import ErrorAccion, IANoDisponibleError
+from cli_tareas.excepciones import (
+    ConfiguracionInvalidaError,
+    ErrorAccion,
+    IANoDisponibleError,
+)
 from cli_tareas.ficheros import (
     formatear_fecha,
     obtener_entradas,
@@ -100,7 +104,7 @@ def _metadatos_entradas(entradas: list[dict]) -> list[dict]:
     ]
 
 
-def _manejar_error_ia(exc: IANoDisponibleError, json_salida: bool) -> typer.Exit:
+def _manejar_error_ia(exc: ErrorAccion, json_salida: bool) -> typer.Exit:
     if json_salida:
         print(_error_json(exc))
         return typer.Exit(code=1)
@@ -270,6 +274,7 @@ def describir(
         simular,
         "Se describirían los ficheros de: {ruta}",
         json_salida=json_salida,
+        json_en_simulacion=True,
     )
     max_ficheros = int(config.get("max_ficheros", 10))
     try:
@@ -292,7 +297,7 @@ def describir(
                 {**meta, "descripcion": pedir_descripcion(meta, config_ia)}
                 for meta in metas
             ]
-        except IANoDisponibleError as exc:
+        except (ConfiguracionInvalidaError, IANoDisponibleError) as exc:
             raise _manejar_error_ia(exc, json_salida) from exc
 
     if json_salida:
@@ -360,7 +365,7 @@ def clasificar(
                 }
                 for meta in metas
             ]
-        except IANoDisponibleError as exc:
+        except (ConfiguracionInvalidaError, IANoDisponibleError) as exc:
             raise _manejar_error_ia(exc, json_salida) from exc
 
     if json_salida:

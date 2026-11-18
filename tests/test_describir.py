@@ -64,6 +64,18 @@ def test_describir_simular_sin_llamadas(
     assert "Se describirían los ficheros" in resultado.output
 
 
+def test_describir_simular_json(carpeta_contenido: Path, sin_red, sin_env_ia) -> None:
+    resultado = runner.invoke(
+        app, ["describir", str(carpeta_contenido), "--simular", "--json"]
+    )
+    assert resultado.exit_code == 0
+    assert json.loads(resultado.output) == {
+        "accion": "describir",
+        "simulacion": True,
+        "ruta": str(carpeta_contenido),
+    }
+
+
 def test_describir_tabla_ia(
     carpeta_contenido: Path, sin_env_ia, ia_falsa, acciones_temporales
 ) -> None:
@@ -203,3 +215,47 @@ def test_describir_max_ficheros_invalido(
     resultado = runner.invoke(app, ["describir", str(carpeta_contenido)])
     assert resultado.exit_code == 1
     assert "mayor que 0" in resultado.output
+
+
+@pytest.mark.parametrize("timeout", ["no-es-numero", "0"])
+def test_describir_timeout_invalido_texto(
+    carpeta_contenido: Path,
+    env_ia,
+    monkeypatch: pytest.MonkeyPatch,
+    sin_red,
+    acciones_temporales,
+    timeout: str,
+) -> None:
+    monkeypatch.setenv("TAREAS_IA_TIMEOUT", timeout)
+    monkeypatch.setenv("TAREAS_API_KEY", "secreto-no-debe-aparecer")
+    acciones_temporales(
+        "describir",
+        {"activa": True, "ruta_predeterminada": str(carpeta_contenido)},
+    )
+    resultado = runner.invoke(app, ["describir"])
+    assert resultado.exit_code == 1
+    assert "Traceback" not in resultado.output
+    assert "TAREAS_IA_TIMEOUT" in resultado.output
+    assert "secreto-no-debe-aparecer" not in resultado.output
+
+
+@pytest.mark.parametrize("timeout", ["no-es-numero", "0"])
+def test_describir_timeout_invalido_json(
+    carpeta_contenido: Path,
+    env_ia,
+    monkeypatch: pytest.MonkeyPatch,
+    sin_red,
+    acciones_temporales,
+    timeout: str,
+) -> None:
+    monkeypatch.setenv("TAREAS_IA_TIMEOUT", timeout)
+    monkeypatch.setenv("TAREAS_API_KEY", "secreto-no-debe-aparecer")
+    acciones_temporales(
+        "describir",
+        {"activa": True, "ruta_predeterminada": str(carpeta_contenido)},
+    )
+    resultado = runner.invoke(app, ["describir", "--json"])
+    assert resultado.exit_code == 1
+    assert "Traceback" not in resultado.output
+    assert "TAREAS_IA_TIMEOUT" in json.loads(resultado.output)["error"]
+    assert "secreto-no-debe-aparecer" not in resultado.output

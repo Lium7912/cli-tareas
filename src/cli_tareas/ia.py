@@ -1,4 +1,5 @@
 import json
+import math
 import os
 import urllib.error
 import urllib.request
@@ -20,8 +21,12 @@ def configuracion_ia() -> dict:
         timeout = float(os.environ.get("TAREAS_IA_TIMEOUT", TIMEOUT_DEFECTO))
     except ValueError as exc:
         raise ConfiguracionInvalidaError(
-            "La variable TAREAS_IA_TIMEOUT debe ser un número"
+            "La variable TAREAS_IA_TIMEOUT debe ser un número mayor que 0"
         ) from exc
+    if not math.isfinite(timeout) or timeout <= 0:
+        raise ConfiguracionInvalidaError(
+            "La variable TAREAS_IA_TIMEOUT debe ser un número mayor que 0"
+        )
     return {
         "api_base": base.rstrip("/"),
         "modelo": modelo,
