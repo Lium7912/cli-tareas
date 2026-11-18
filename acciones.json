@@ -28,5 +28,11 @@
     "descripcion": "Genera descripciones en español de los ficheros de una carpeta usando IA",
     "ruta_predeterminada": "~/pruebas-tareas",
     "max_ficheros": 10
+  },
+  "clasificar": {
+    "activa": true,
+    "descripcion": "Clasifica los ficheros de una carpeta por categorías usando IA",
+    "ruta_predeterminada": "~/pruebas-tareas",
+    "max_ficheros": 10
   }
 }

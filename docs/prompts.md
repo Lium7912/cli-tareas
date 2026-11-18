@@ -248,3 +248,66 @@ Recordatorios al añadir entradas:
   La capa de IA envía únicamente metadatos (nunca el contenido de ficheros).
 - **Aprobación realizada por el usuario:** aprobación explícita del plan
   actualizado en la conversación (texto citado arriba).
+
+### Entrada 5.4 — Segunda acción con IA: `clasificar`
+
+- **Fecha:** 2026-11-18
+- **Objetivo:** implementar la segunda acción con IA (`clasificar`), que
+  propone categorías (documentos, imágenes, código, datos, comprimidos y
+  otros) a partir exclusivamente de metadatos, reutilizando `ia.py` y la
+  arquitectura de `describir`, con `--simular`, `--sin-ia`, `--json`, ruta
+  opcional y límite configurable.
+- **Texto del prompt (aprobación definitiva):**
+  > «Apruebo el diseño de la segunda acción con IA `clasificar`, con las
+  > siguientes decisiones definitivas:
+  >
+  > 1. Carpetas: ignorarlas. Clasificar exclusivamente archivos.
+  > 2. Respuestas de IA con categorías desconocidas: asignar `otros`, siempre
+  >    que la respuesta sea válida. Los errores de conexión, autenticación o
+  >    respuestas malformadas deben seguir tratándose como errores
+  >    controlados.
+  > 3. `--simular` combinado con `--json`: devolver exclusivamente JSON válido
+  >    por stdout, sin llamadas a la API ni modificaciones de archivos.
+  > 4. Límite predeterminado: `max_ficheros: 10`, configurable mediante
+  >    acciones.json.
+  >
+  > Autorizo pasar a la Fase 2 (Build) para implementar exclusivamente la
+  > acción `clasificar` según el diseño aprobado.
+  >
+  > Condiciones obligatorias:
+  >
+  > - Mantener intacto el comportamiento de listar, contar, buscar y resumen.
+  > - Conservar la compatibilidad de describir, incluyendo su firma pública y
+  >   sus mensajes.
+  > - Reutilizar la infraestructura de IA existente sin duplicar lógica
+  >   innecesariamente.
+  > - No utilizar credenciales reales ni realizar llamadas a la API durante
+  >   las pruebas.
+  > - Ejecutar Ruff, todas las pruebas con pytest y las simulaciones
+  >   necesarias.
+  > - Las 63 pruebas existentes deben continuar pasando.
+  > - Mostrar los resultados de las pruebas y `git diff --check`.
+  > - Mostrar `git status --short` y un resumen de todos los archivos
+  >   modificados.
+  > - No realizar commits, push, reset ni utilizar `--auto`.
+  >
+  > Si alguna prueba falla, corrige el problema y vuelve a ejecutar la suite
+  > completa.
+  >
+  > Al terminar, detente y espera mi autorización antes de cualquier cambio
+  > adicional.»
+- **Modelo utilizado:** `deepseek-v4.1-flash-free` mediante OpenCode.
+- **Archivos afectados:** creados `src/cli_tareas/clasificar.py` y
+  `tests/test_clasificar.py`; modificados `acciones.json`,
+  `src/cli_tareas/acciones.py`, `src/cli_tareas/ia.py`,
+  `src/cli_tareas/main.py`, `tests/conftest.py`, `README.md`,
+  `docs/adr/ADR-0002.md` y este documento.
+- **Resultado obtenido:** `uv run ruff check .` y
+  `uv run ruff format --check .` sin errores; `uv run python -m pytest -q`
+  con **92 pruebas superadas** (63 anteriores + 29 nuevas, incluidas las
+  parametrizadas); verificados `clasificar --simular`,
+  `clasificar --simular --json` (solo JSON válido),
+  `clasificar --sin-ia --json`, `clasificar --sin-ia`, `clasificar --help`
+  y `describir --sin-ia --json`; ninguna llamada real a la API.
+- **Aprobación realizada por el usuario:** aprobación explícita del diseño
+  y autorización de la Fase 2 en la conversación (texto citado arriba).

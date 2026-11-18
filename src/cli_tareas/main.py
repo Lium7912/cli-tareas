@@ -11,6 +11,14 @@ from cli_tareas.buscar import (
     construir_tabla_busqueda,
     limitar_resultados,
 )
+from cli_tareas.clasificar import (
+    clasificar_determinista,
+    construir_tabla_clasificacion,
+    normalizar_categoria,
+)
+from cli_tareas.clasificar import (
+    construir_salida_json as construir_salida_json_clasificacion,
+)
 from cli_tareas.contar import construir_texto, contar_entradas
 from cli_tareas.describir import (
     construir_salida_json,
@@ -24,7 +32,7 @@ from cli_tareas.ficheros import (
     ordenar_entradas,
     resolver_ruta,
 )
-from cli_tareas.ia import configuracion_ia, pedir_descripcion
+from cli_tareas.ia import configuracion_ia, pedir_clasificacion, pedir_descripcion
 from cli_tareas.listar import construir_tabla
 from cli_tareas.resumen import calcular_resumen, construir_tabla_resumen
 
@@ -47,6 +55,7 @@ def _iniciar(
     simular: bool,
     mensaje_simulacion: str,
     json_salida: bool = False,
+    json_en_simulacion: bool = False,
 ) -> tuple[dict, Path]:
     """Carga la configuración de la acción y resuelve la ruta a tratar."""
     try:
@@ -57,13 +66,49 @@ def _iniciar(
         print(_error_json(exc) if json_salida else f"Error: {exc}")
         raise typer.Exit(code=1) from exc
     if simular:
-        print(f"[simulación] {mensaje_simulacion.format(ruta=ruta_resuelta)}")
+        if json_salida and json_en_simulacion:
+            print(
+                json.dumps(
+                    {
+                        "accion": nombre,
+                        "simulacion": True,
+                        "ruta": str(ruta_resuelta),
+                    },
+                    ensure_ascii=False,
+                )
+            )
+        else:
+            print(f"[simulación] {mensaje_simulacion.format(ruta=ruta_resuelta)}")
         raise typer.Exit()
     return config, ruta_resuelta
 
 
 def _fallar(exc: Exception, json_salida: bool = False) -> typer.Exit:
     print(_error_json(exc) if json_salida else f"Error: {exc}")
+    return typer.Exit(code=1)
+
+
+def _metadatos_entradas(entradas: list[dict]) -> list[dict]:
+    return [
+        {
+            "nombre": entrada["nombre"],
+            "tipo": entrada["tipo"],
+            "tamano": entrada["tamano"],
+            "modificado": formatear_fecha(entrada["modificado"]),
+        }
+        for entrada in entradas
+    ]
+
+
+def _manejar_error_ia(exc: IANoDisponibleError, json_salida: bool) -> typer.Exit:
+    if json_salida:
+        print(_error_json(exc))
+        return typer.Exit(code=1)
+    print(f"Error: {exc}")
+    consola.print(
+        "[yellow]Puedes usar --sin-ia o las acciones sin IA: "
+        "listar, contar, buscar, resumen[/yellow]"
+    )
     return typer.Exit(code=1)
 
 
@@ -233,15 +278,7 @@ def describir(
     except ErrorAccion as exc:
         raise _fallar(exc, json_salida=json_salida) from exc
 
-    metas = [
-        {
-            "nombre": entrada["nombre"],
-            "tipo": entrada["tipo"],
-            "tamano": entrada["tamano"],
-            "modificado": formatear_fecha(entrada["modificado"]),
-        }
-        for entrada in entradas
-    ]
+    metas = _metadatos_entradas(entradas)
     if sin_ia:
         origen = "determinista"
         filas = [
@@ -256,15 +293,7 @@ def describir(
                 for meta in metas
             ]
         except IANoDisponibleError as exc:
-            if json_salida:
-                print(_error_json(exc))
-                raise typer.Exit(code=1) from exc
-            print(f"Error: {exc}")
-            consola.print(
-                "[yellow]Puedes usar --sin-ia o las acciones sin IA: "
-                "listar, contar, buscar, resumen[/yellow]"
-            )
-            raise typer.Exit(code=1) from exc
+            raise _manejar_error_ia(exc, json_salida) from exc
 
     if json_salida:
         print(construir_salida_json(filas, ruta_resuelta, origen))
@@ -273,6 +302,74 @@ def describir(
         if origen == "ia":
             consola.print(
                 "[dim]Descripciones generadas por IA: pueden contener inexactitudes.[/dim]"
+            )
+
+
+@app.command()
+def clasificar(
+    ruta: Path | None = typer.Argument(
+        None,
+        help="Carpeta a clasificar; por defecto, la ruta_predeterminada de acciones.json",
+    ),
+    simular: bool = typer.Option(
+        False,
+        "--simular",
+        help="Ejecuta en modo simulación (sin efectos externos ni llamadas de red)",
+    ),
+    sin_ia: bool = typer.Option(
+        False,
+        "--sin-ia",
+        help="Clasifica por extensión, sin IA ni red",
+    ),
+    json_salida: bool = typer.Option(
+        False,
+        "--json",
+        help="Salida en JSON (sin colores ni decoración)",
+    ),
+) -> None:
+    """Clasifica los ficheros de una carpeta por categorías (solo metadatos)."""
+    config, ruta_resuelta = _iniciar(
+        "clasificar",
+        ruta,
+        simular,
+        "Se clasificarían los ficheros de: {ruta}",
+        json_salida=json_salida,
+        json_en_simulacion=True,
+    )
+    max_ficheros = int(config.get("max_ficheros", 10))
+    try:
+        entradas = obtener_entradas(ruta_resuelta, incluir_carpetas=False)
+        entradas = ordenar_entradas(entradas, "nombre")[:max_ficheros]
+    except ErrorAccion as exc:
+        raise _fallar(exc, json_salida=json_salida) from exc
+
+    metas = _metadatos_entradas(entradas)
+    if sin_ia:
+        origen = "determinista"
+        filas = [{**meta, "categoria": clasificar_determinista(meta)} for meta in metas]
+    else:
+        origen = "ia"
+        try:
+            config_ia = configuracion_ia()
+            filas = [
+                {
+                    **meta,
+                    "categoria": normalizar_categoria(
+                        pedir_clasificacion(meta, config_ia)
+                    ),
+                }
+                for meta in metas
+            ]
+        except IANoDisponibleError as exc:
+            raise _manejar_error_ia(exc, json_salida) from exc
+
+    if json_salida:
+        print(construir_salida_json_clasificacion(filas, ruta_resuelta, origen))
+    else:
+        consola.print(construir_tabla_clasificacion(filas, ruta_resuelta, origen))
+        if origen == "ia":
+            consola.print(
+                "[dim]Clasificación generada por IA: revisa las categorías dudosas.[/dim]"
             )
 
 

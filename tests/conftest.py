@@ -42,6 +42,32 @@ def carpeta_contenido() -> Path:
             entrada.unlink()
 
 
+@pytest.fixture(scope="session")
+def carpeta_clasificar() -> Path:
+    BASE_FIXTURE.mkdir(parents=True, exist_ok=True)
+    ruta = BASE_FIXTURE / "clasificar"
+    ruta.mkdir(exist_ok=True)
+    contenidos = {
+        "informe.pdf": "contenido-centinela",
+        "foto.jpg": "imagen",
+        "script.py": "print('hola')",
+        "datos.csv": "a,b",
+        "paquete.zip": "zip",
+        "raro.xyz": "desconocido",
+    }
+    for nombre, contenido in contenidos.items():
+        (ruta / nombre).write_text(contenido, encoding="utf-8")
+    subcarpeta = ruta / "subcarpeta"
+    subcarpeta.mkdir(exist_ok=True)
+    (subcarpeta / "nota.txt").write_text("no debe clasificarse", encoding="utf-8")
+    yield ruta
+    for entrada in ruta.iterdir():
+        if entrada.is_dir():
+            shutil.rmtree(entrada)
+        else:
+            entrada.unlink()
+
+
 @pytest.fixture
 def acciones_temporales(monkeypatch: pytest.MonkeyPatch):
     rutas: list[Path] = []

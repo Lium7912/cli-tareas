@@ -7,7 +7,7 @@ CLI de línea de comandos para **gestionar tareas asistidas por IA**, desarrolla
 - Interfaz de terminal coherente, con ayuda autogenerada y salida formateada con tablas.
 - **Acciones configurables sin tocar el código fuente**, mediante `acciones.json`.
 - **Seguridad**: modo `--simular` para prever el efecto de una operación antes de ejecutarla, validación estricta de la configuración y límite de resultados.
-- **Calidad comprobable**: 63 pruebas automatizadas superadas y lint limpio con Ruff.
+- **Calidad comprobable**: 92 pruebas automatizadas superadas y lint limpio con Ruff.
 
 Funcionalidades actuales (todas de **solo lectura** sobre el sistema de ficheros):
 
@@ -19,6 +19,7 @@ Funcionalidades actuales (todas de **solo lectura** sobre el sistema de ficheros
 | `buscar` | Busca ficheros por nombre o extensión. |
 | `resumen` | Resume una carpeta: nº de ficheros, tipos y tamaño total. |
 | `describir` | Genera descripciones en español de los ficheros usando IA (o modo determinista con `--sin-ia`). |
+| `clasificar` | Clasifica los ficheros por categorías (documentos, imágenes, código, datos, comprimidos, otros) usando IA (o modo determinista con `--sin-ia`). |
 
 ## Tecnologías y dependencias
 
@@ -165,6 +166,33 @@ uv run python -m cli_tareas.main describir --json --sin-ia
 `max_ficheros` (en `acciones.json`, por defecto 10) limita cuántos elementos
 se describen por orden.
 
+### `clasificar` — clasificar ficheros (capa IA)
+
+Clasifica cada fichero de primer nivel en una de estas categorías:
+`documentos`, `imágenes`, `código`, `datos`, `comprimidos` u `otros`. Solo se
+usan **metadatos** (nombre, tipo, tamaño y fecha); nunca se lee ni se envía el
+contenido. Las carpetas se ignoran y no se mueve, renombra, elimina ni modifica
+ningún archivo.
+
+```powershell
+# Con IA (requiere configurar las variables de entorno, ver «Capa de IA»)
+uv run python -m cli_tareas.main clasificar
+
+# Clasificación determinista por extensión, sin IA ni red
+uv run python -m cli_tareas.main clasificar --sin-ia
+
+# Salida en JSON (sin colores, apta para tuberías)
+uv run python -m cli_tareas.main clasificar --sin-ia --json
+
+# Simulación combinada con JSON: solo se emite JSON por stdout
+uv run python -m cli_tareas.main clasificar --simular --json
+```
+
+`max_ficheros` (en `acciones.json`, por defecto 10) limita cuántos ficheros se
+clasifican, tras ordenarlos por nombre. Si la IA devuelve una categoría
+desconocida, se asigna `otros`; los errores de conexión, autenticación o las
+respuestas malformadas siguen tratándose como errores controlados.
+
 ### Ayuda de cada comando
 
 ```powershell
@@ -184,14 +212,22 @@ uv run python -m cli_tareas.main buscar --termino informe --simular
 
 uv run python -m cli_tareas.main describir --simular
 # Salida: [simulación] Se describirían los ficheros de: <ruta>
+
+uv run python -m cli_tareas.main clasificar --simular
+# Salida: [simulación] Se clasificarían los ficheros de: <ruta>
+
+uv run python -m cli_tareas.main clasificar --simular --json
+# Salida: {"accion": "clasificar", "simulacion": true, "ruta": "<ruta>"}
 ```
 
-`describir --simular` no realiza ninguna llamada de red ni exige ninguna
-variable de entorno: la simulación se corta antes de la capa de IA.
+`describir --simular` y `clasificar --simular` no realizan ninguna llamada de
+red ni exigen ninguna variable de entorno: la simulación se corta antes de la
+capa de IA. En `clasificar`, la combinación `--simular --json` emite
+exclusivamente JSON válido por stdout.
 
 ## Capa de IA y modo sin red
 
-La acción `describir` llama a un **endpoint compatible con la API de OpenAI**
+Las acciones `describir` y `clasificar` llaman a un **endpoint compatible con la API de OpenAI**
 (el formato usado por los modelos locales del centro, p. ej. ollama, y por
 OpenCode). La configuración va **exclusivamente por variables de entorno**,
 nunca en el repo; `.env.example` documenta los nombres sin valores reales:
@@ -215,8 +251,8 @@ uv run --env-file .env python -m cli_tareas.main describir
 responde con error, la CLI lo explica en una línea (sin traceback, sin
 secretos), recuerda las alternativas (`--sin-ia` y las acciones sin IA:
 `listar`, `contar`, `buscar`, `resumen`) y termina con código de salida 1.
-Con `--sin-ia` se generan descripciones deterministas a partir de los
-metadatos, etiquetadas como «determinista», sin IA ni red.
+Con `--sin-ia` se generan descripciones o clasificaciones deterministas a
+partir de los metadatos, etiquetadas como «determinista», sin IA ni red.
 
 Las peticiones a la IA contienen **solo metadatos** (nombre, tipo, tamaño y
 fecha); nunca el contenido de los ficheros. La decisión completa está en
@@ -257,13 +293,19 @@ Las acciones se definen en `acciones.json`, en la **raíz del proyecto**. Nunca 
     "descripcion": "Genera descripciones en español de los ficheros de una carpeta usando IA",
     "ruta_predeterminada": "~/pruebas-tareas",
     "max_ficheros": 10
+  },
+  "clasificar": {
+    "activa": true,
+    "descripcion": "Clasifica los ficheros de una carpeta por categorías usando IA",
+    "ruta_predeterminada": "~/pruebas-tareas",
+    "max_ficheros": 10
   }
 }
 ```
 
 ### La carpeta `~/pruebas-tareas`
 
-Las cuatro acciones usan como `ruta_predeterminada` la carpeta `~/pruebas-tareas`, que es **externa al repositorio** (se encuentra en la carpeta personal del usuario). Esta carpeta **debe existir** para poder utilizar las acciones sin indicar una ruta; si no existe, la CLI mostrará un error controlado («La carpeta no existe: …») y terminará con código de salida 1.
+Las acciones usan como `ruta_predeterminada` la carpeta `~/pruebas-tareas`, que es **externa al repositorio** (se encuentra en la carpeta personal del usuario). Esta carpeta **debe existir** para poder utilizar las acciones sin indicar una ruta; si no existe, la CLI mostrará un error controlado («La carpeta no existe: …») y terminará con código de salida 1.
 
 Puedes crearla desde PowerShell:
 
@@ -287,7 +329,7 @@ uv run python -m cli_tareas.main listar C:\Users\Public
 - `incluir_carpetas`: controla si se incluyen las subcarpetas de **primer nivel** de la carpeta analizada. Lo usan `listar` (por defecto `true`: las subcarpetas aparecen como filas de la tabla) y `contar` (por defecto `false`: se cuentan solo los ficheros). No afecta a `buscar` ni a `resumen`, que procesan solo el primer nivel de la carpeta: `buscar` examina ficheros y carpetas (y excluye las carpetas cuando se filtra por extensión), y `resumen` cuenta ficheros y carpetas de primer nivel.
 - `ordenar_por`: criterio de ordenación de `listar` (valores válidos: `nombre`, `tamano`, `modificado`, `tipo`).
 - `max_resultados`: límite de resultados de `buscar` (debe ser un entero mayor que 0).
-- `max_ficheros`: límite de elementos que `describir` procesa por orden (debe ser un entero mayor que 0).
+- `max_ficheros`: límite de elementos que `describir` y `clasificar` procesan por orden (debe ser un entero mayor que 0). En `clasificar`, las carpetas no cuentan: solo se clasifican ficheros.
 
 La configuración se **valida estrictamente** al ejecutar cualquier acción (`src/cli_tareas/acciones.py`): existencia de la acción, que esté activa, tipos correctos de cada clave y valores positivos. Ante un error, la CLI muestra un mensaje claro y termina con código de salida 1.
 
@@ -316,13 +358,14 @@ cli-tareas/
 │   ├── buscar.py              # Tabla de buscar (presentación)
 │   ├── resumen.py             # Tabla de resumen (presentación)
 │   ├── describir.py           # Tabla/JSON de describir (presentación)
+│   ├── clasificar.py          # Clasificación por extensión, tabla/JSON
 │   └── excepciones.py         # Jerarquía propia de errores (ErrorAccion)
-└── tests/                     # 63 pruebas automatizadas (pytest)
+└── tests/                     # 92 pruebas automatizadas (pytest)
 ```
 
 ## Pruebas automatizadas (pytest)
 
-Las pruebas cubren la lógica de acciones, la resolución de rutas, cada comando, el modo `--simular`, la desactivación de acciones, los errores de configuración y la capa de IA (con la red simulada; nunca se llama a un servicio real en las pruebas):
+Las pruebas cubren la lógica de acciones, la resolución de rutas, cada comando, el modo `--simular`, la desactivación de acciones, los errores de configuración, la clasificación determinista y la capa de IA (con la red simulada; nunca se llama a un servicio real en las pruebas):
 
 ```powershell
 uv run pytest
@@ -391,4 +434,4 @@ Las decisiones técnicas del proyecto están registradas en [`docs/adr/ADR-0001.
 - `ruta_predeterminada` apunta a `~/pruebas-tareas`, fuera del repo: la carpeta debe existir en cada máquina.
 - Añadir una acción nueva requiere tocar `acciones.json` **y** el bloque `ESQUEMAS` de `acciones.py` (duplicación parcial documentada en el ADR).
 - `acciones.json` no admite comentarios (limitación del formato JSON).
-- La integración con IA está preparada (`describir`) pero pendiente de los datos de conexión de los modelos del centro (`TAREAS_API_BASE`/`TAREAS_MODELO`); hasta entonces funciona el modo `--sin-ia` y el resto de acciones.
+- La integración con IA está preparada (`describir` y `clasificar`) pero pendiente de los datos de conexión de los modelos del centro (`TAREAS_API_BASE`/`TAREAS_MODELO`); hasta entonces funcionan el modo `--sin-ia` y el resto de acciones.

@@ -41,6 +41,12 @@ ESQUEMAS: dict[str, dict[str, type]] = {
         "ruta_predeterminada": str,
         "max_ficheros": int,
     },
+    "clasificar": {
+        "activa": bool,
+        "descripcion": str,
+        "ruta_predeterminada": str,
+        "max_ficheros": int,
+    },
 }
 
 CLAVES_POSITIVAS = {"max_resultados", "max_ficheros"}
