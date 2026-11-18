@@ -348,6 +348,14 @@ cli-tareas/
 │   └── adr/
 │       ├── ADR-0001.md        # Decisiones de arquitectura
 │       └── ADR-0002.md        # Capa de IA y modo sin red
+├── .opencode/
+│   ├── agents/
+│   │   └── revisor.md         # Subagente de revisión (solo lectura)
+│   ├── commands/
+│   │   └── nueva-accion.md    # Comando /nueva-accion
+│   └── skills/
+│       └── acciones-json/
+│           └── SKILL.md       # Skill para acciones configurables
 ├── src/cli_tareas/
 │   ├── main.py                # Comandos Typer y orquestación (capa CLI)
 │   ├── acciones.py            # Carga, validación y esquemas de acciones.json
@@ -401,6 +409,36 @@ El desarrollo es **agéntico**, con [OpenCode](https://opencode.ai) guiado por `
 | `bash` | Con **confirmación del usuario**; **denegados** `git commit`, `git push`, `git reset`, `git restore`, `git checkout`, `git stash`, `git rebase` y `git clean` (operaciones de git de escritura). |
 
 El registro de los prompts importantes del desarrollo se documenta en [`docs/prompts.md`](docs/prompts.md). La decisión de arquitectura de la capa de IA está en [`docs/adr/ADR-0002.md`](docs/adr/ADR-0002.md).
+
+### Subagente `revisor`
+
+El proyecto incluye un subagente de revisión en `.opencode/agents/revisor.md`
+(OpenCode 1.18.35, formato de configuración V1). Se ejecuta en **solo lectura**:
+no puede editar archivos ni ejecutar `git commit`, `push`, `reset` u otras
+operaciones de escritura. Revisa el código Python, `acciones.json`, las pruebas
+y la documentación, comprueba el cumplimiento de `AGENTS.md` y devuelve los
+hallazgos ordenados por gravedad con una solución propuesta para cada uno.
+
+Permisos destacados:
+
+| Permiso | Regla |
+|---|---|
+| `edit` | Denegado para todos los archivos (incluye crear y parchear). |
+| `read` | Permitido; denegado `.env`, `.env.*`, `.pem`, `.key` y `.p12`; `.env.example` permitido. |
+| `bash` | Denegado salvo `uv run ruff check .`, `uv run ruff format --check .`, `uv run pytest` y consultas de solo lectura de git (`status`, `diff`, `log`). |
+| `task`, `skill`, `webfetch`, `websearch` | Denegados. |
+| `external_directory` | Denegado (no accede a `~/pruebas-tareas` ni a otras rutas externas). |
+
+Para usarlo, reinicia la sesión de OpenCode y pide al agente principal algo como:
+
+```text
+Usa el subagente revisor para revisar el proyecto completo
+```
+
+El subagente se ejecuta en una sesión hija y devuelve el informe al agente
+principal. No modifica el repositorio: los fixtures de pytest siguen viviendo
+en `~/pruebas-tareas` y los caches (`.pytest_cache/`, `.ruff_cache/`) están
+ignorados por git.
 
 ## Skill `acciones-json` y comando `/nueva-accion`
 

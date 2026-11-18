@@ -311,3 +311,59 @@ Recordatorios al añadir entradas:
   y `describir --sin-ia --json`; ninguna llamada real a la API.
 - **Aprobación realizada por el usuario:** aprobación explícita del diseño
   y autorización de la Fase 2 en la conversación (texto citado arriba).
+
+### Entrada 5.5 — Subagente `revisor` (solo lectura)
+
+- **Fecha:** 2026-11-18
+- **Objetivo:** implementar el subagente `revisor` exigido en la sesión 2 del
+  Proyecto 2, compatible con OpenCode 1.18.35 y con permisos de solo lectura,
+  para revisar código Python, `acciones.json`, pruebas y documentación,
+  comprobar el cumplimiento de `AGENTS.md` y presentar los hallazgos por
+  gravedad con soluciones propuestas.
+- **Texto del prompt:**
+  > «Sí, apruebo el diseño final del subagente `revisor`.
+  >
+  > Autorizo su implementación en modo Build, exclusivamente con los siguientes
+  > cambios:
+  >
+  > 1. Crear `.opencode/agents/revisor.md`.
+  > 2. Actualizar `README.md` para documentar el subagente.
+  > 3. Actualizar `docs/prompts.md` con la entrada 5.5.
+  >
+  > Condiciones obligatorias:
+  >
+  > - Compatible con OpenCode 1.18.35.
+  > - Configurar el subagente para revisión de solo lectura, sin permisos de
+  >   edición.
+  > - Permitir únicamente los comandos de verificación necesarios, como Ruff y
+  >   pytest, con los datos de prueba en `~/pruebas-tareas`.
+  > - No ejecutar operaciones de Git que modifiquen el repositorio.
+  > - No acceder a credenciales, tokens ni archivos .env.
+  > - No modificar código Python, acciones.json ni pruebas.
+  > - No crear el comando `/revisar`.
+  > - No realizar commits, push, reset ni utilizar --auto.
+  >
+  > Al finalizar, ejecuta las verificaciones previstas y muestra:
+  >
+  > 1. Resultado de `opencode agent list`.
+  > 2. Resultado de Ruff.
+  > 3. Número total de pruebas superadas con pytest.
+  > 4. Resultado de `git diff --check`.
+  > 5. Resultado de `git status --short`.
+  > 6. Configuración definitiva de permisos del subagente.
+  >
+  > No realices cambios adicionales sin mi autorización.»
+- **Modelo utilizado:** `deepseek-v4.1-flash-free` mediante OpenCode 1.18.35.
+- **Archivos afectados:** creado `.opencode/agents/revisor.md`; modificados
+  `README.md` y `docs/prompts.md`. Sin cambios en código Python,
+  `acciones.json`, `tests/` ni `opencode.json`.
+- **Resultado obtenido:** `cmd /c "opencode agent list"` detecta
+  `revisor (subagent)`; los permisos efectivos incluyen `edit: deny`, la
+  allowlist de `bash` (Ruff, pytest y consultas git de solo lectura) y la
+  denegación de lectura de `.env*`/`.pem`/`.key`/`.p12`. `uv run ruff check .`
+  pasa sin errores; `uv run ruff format --check .` informa de 29 archivos ya
+  formateados; `uv run pytest -q` supera **92 pruebas**.
+- **Aprobación realizada por el usuario:** aprobación explícita del diseño
+  final en la conversación (texto citado arriba), con las decisiones de
+  permitir pytest, no crear `/revisar` y actualizar `README.md` y
+  `docs/prompts.md`.
