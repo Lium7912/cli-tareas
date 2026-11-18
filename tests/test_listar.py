@@ -1,4 +1,3 @@
-import json
 from pathlib import Path
 
 import pytest
@@ -33,22 +32,21 @@ def test_listar_muestra_contenido(
     assert "carpeta" in resultado.output
 
 
-def test_listar_ruta_predeterminada(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_listar_ruta_predeterminada(
+    monkeypatch: pytest.MonkeyPatch, acciones_temporales
+) -> None:
     config = {
         "activa": True,
         "ruta_predeterminada": "~/pruebas-tareas",
         "incluir_carpetas": True,
         "ordenar_por": "nombre",
     }
-    ruta_acciones = Path.home() / "pruebas-tareas" / "_pytest" / "acciones_ok.json"
-    ruta_acciones.parent.mkdir(parents=True, exist_ok=True)
-    ruta_acciones.write_text(json.dumps({"listar": config}), encoding="utf-8")
-    try:
-        resultado = _invocar_listar_con_acciones(monkeypatch, ruta_acciones, [])
-        assert resultado.exit_code == 0
-        assert "pruebas-tareas" in resultado.output
-    finally:
-        ruta_acciones.unlink()
+    acciones_temporales("listar", config)
+    resultado = _invocar_listar_con_acciones(
+        monkeypatch, cli_tareas.acciones.RUTA_ACCIONES, []
+    )
+    assert resultado.exit_code == 0
+    assert "pruebas-tareas" in resultado.output
 
 
 def test_listar_ruta_inexistente(monkeypatch: pytest.MonkeyPatch) -> None:

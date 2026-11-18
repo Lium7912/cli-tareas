@@ -1,13 +1,13 @@
 # CLI Tareas con IA
 
-CLI de línea de comandos para **gestionar tareas asistidas por IA**, desarrollada como **Proyecto 2 de DAM (2º DAM)** con fines educativos. Automatiza tareas repetitivas del sistema de ficheros (listar, contar, buscar y resumir carpetas) de forma **segura, configurable y verificable**, sirviendo de base para incorporar posteriormente capacidades de IA.
+CLI de línea de comandos para **gestionar tareas asistidas por IA**, desarrollada como **Proyecto 2 de DAM (2º DAM)** con fines educativos. Automatiza tareas repetitivas del sistema de ficheros (listar, contar, buscar, resumir, describir y clasificar carpetas) de forma **segura, configurable y verificable**, e incorpora dos acciones asistidas por IA (`describir` y `clasificar`).
 
 ## Objetivos y funcionalidades
 
 - Interfaz de terminal coherente, con ayuda autogenerada y salida formateada con tablas.
 - **Acciones configurables sin tocar el código fuente**, mediante `acciones.json`.
 - **Seguridad**: modo `--simular` para prever el efecto de una operación antes de ejecutarla, validación estricta de la configuración y límite de resultados.
-- **Calidad comprobable**: 92 pruebas automatizadas superadas y lint limpio con Ruff.
+- **Calidad comprobable**: 138 pruebas automatizadas superadas y lint limpio con Ruff.
 
 Funcionalidades actuales (todas de **solo lectura** sobre el sistema de ficheros):
 
@@ -374,7 +374,7 @@ cli-tareas/
 │   ├── describir.py           # Tabla/JSON de describir (presentación)
 │   ├── clasificar.py          # Clasificación por extensión, tabla/JSON
 │   └── excepciones.py         # Jerarquía propia de errores (ErrorAccion)
-└── tests/                     # 92 pruebas automatizadas (pytest)
+└── tests/                     # 138 pruebas automatizadas (pytest)
 ```
 
 ## Pruebas automatizadas (pytest)

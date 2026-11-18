@@ -17,20 +17,20 @@ def test_cargar_acciones_valido() -> None:
         assert isinstance(acciones[nombre], dict)
 
 
-def test_cargar_acciones_json_invalido(tmp_path: Path) -> None:
-    ruta = tmp_path / "acciones.json"
+def test_cargar_acciones_json_invalido(carpeta_temporal: Path) -> None:
+    ruta = carpeta_temporal / "acciones.json"
     ruta.write_text("{ no válido", encoding="utf-8")
     with pytest.raises(ValueError):
         cargar_acciones(ruta)
 
 
-def test_cargar_acciones_inexistente(tmp_path: Path) -> None:
+def test_cargar_acciones_inexistente(carpeta_temporal: Path) -> None:
     with pytest.raises(FileNotFoundError):
-        cargar_acciones(tmp_path / "no-existe.json")
+        cargar_acciones(carpeta_temporal / "no-existe.json")
 
 
-def test_cargar_acciones_no_objeto(tmp_path: Path) -> None:
-    ruta = tmp_path / "acciones.json"
+def test_cargar_acciones_no_objeto(carpeta_temporal: Path) -> None:
+    ruta = carpeta_temporal / "acciones.json"
     ruta.write_text("[]", encoding="utf-8")
     with pytest.raises(TypeError):
         cargar_acciones(ruta)
@@ -71,14 +71,14 @@ def test_config_valida_devuelve_dict() -> None:
     assert config["activa"] is True
 
 
-def test_resolver_ruta_predeterminada(tmp_path: Path) -> None:
-    config = {"ruta_predeterminada": str(tmp_path)}
-    assert resolver_ruta(config, None) == tmp_path
+def test_resolver_ruta_predeterminada(carpeta_temporal: Path) -> None:
+    config = {"ruta_predeterminada": str(carpeta_temporal)}
+    assert resolver_ruta(config, None) == carpeta_temporal
 
 
-def test_resolver_ruta_indicada(tmp_path: Path) -> None:
+def test_resolver_ruta_indicada(carpeta_temporal: Path) -> None:
     config = {"ruta_predeterminada": "~/pruebas-tareas"}
-    assert resolver_ruta(config, tmp_path) == tmp_path
+    assert resolver_ruta(config, carpeta_temporal) == carpeta_temporal
 
 
 def test_resolver_ruta_sin_predeterminada() -> None:

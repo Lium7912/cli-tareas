@@ -7,6 +7,16 @@ import pytest
 BASE_FIXTURE = Path.home() / "pruebas-tareas" / "_pytest"
 
 
+@pytest.fixture
+def carpeta_temporal(request: pytest.FixtureRequest) -> Path:
+    ruta = BASE_FIXTURE / "tmp" / request.node.name
+    if ruta.exists():
+        shutil.rmtree(ruta)
+    ruta.mkdir(parents=True)
+    yield ruta
+    shutil.rmtree(ruta, ignore_errors=True)
+
+
 @pytest.fixture(scope="session")
 def carpeta_pruebas() -> Path:
     BASE_FIXTURE.mkdir(parents=True, exist_ok=True)
@@ -88,10 +98,17 @@ def acciones_temporales(monkeypatch: pytest.MonkeyPatch):
 
 
 @pytest.fixture
-def acciones_inactivas(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    ruta = tmp_path / "acciones.json"
+def acciones_inactivas(carpeta_temporal: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    ruta = carpeta_temporal / "acciones.json"
     ruta.write_text(
-        json.dumps({"listar": {"activa": False, "ruta_predeterminada": str(tmp_path)}}),
+        json.dumps(
+            {
+                "listar": {
+                    "activa": False,
+                    "ruta_predeterminada": str(carpeta_temporal),
+                }
+            }
+        ),
         encoding="utf-8",
     )
     import cli_tareas.acciones

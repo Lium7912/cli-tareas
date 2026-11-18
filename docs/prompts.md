@@ -367,3 +367,56 @@ Recordatorios al añadir entradas:
   final en la conversación (texto citado arriba), con las decisiones de
   permitir pytest, no crear `/revisar` y actualizar `README.md` y
   `docs/prompts.md`.
+
+### Entrada 5.6 — Revisión R-04 y R-05: fixtures y documentación
+
+- **Fecha:** 2026-11-18
+- **Objetivo:** cerrar los hallazgos pendientes del subagente revisor tras el
+  commit `7f887ce`: R-04 (fixtures mutables de pytest fuera de
+  `~/pruebas-tareas`) y R-05 (documentación desactualizada sobre las seis
+  acciones y las 138 pruebas actuales), sin modificar `src/`,
+  `acciones.json` ni el comportamiento de las acciones existentes.
+- **Texto del prompt:**
+  > «El plan R-04 y R-05 queda aprobado definitivamente.
+  >
+  > Ejecuta únicamente las modificaciones descritas, incluyendo el refactor de
+  > `test_listar_ruta_predeterminada` y la entrada 5.6 completa de
+  > `docs/prompts.md`.
+  >
+  > Mantén las 138 pruebas existentes, ejecuta todas las verificaciones
+  > previstas y comprueba que los fixtures mutables se crean exclusivamente
+  > dentro de `~/pruebas-tareas`.
+  >
+  > No modifiques `src/` ni `acciones.json`. No realices commits, push, reset
+  > ni utilices `--auto`.
+  >
+  > Al finalizar, muestra los resultados de Ruff, pytest,
+  > `git diff --check` y `git status --short`. Espera mi autorización antes de
+  > cualquier cambio adicional.»
+- **Decisiones aprobadas:**
+  1. Añadir el fixture `carpeta_temporal` en `tests/conftest.py`, con base en
+     `~/pruebas-tareas/_pytest/tmp`, y sustituir los usos de `tmp_path` en
+     `acciones_inactivas` y en `tests/test_acciones.py`.
+  2. Refactorizar `test_listar_ruta_predeterminada` para usar
+     `acciones_temporales`, conservando sus comprobaciones originales
+     (`exit_code == 0` y `"pruebas-tareas"` en la salida).
+  3. Actualizar `README.md` y `docs/adr/ADR-0001.md` para reflejar las seis
+     acciones (`listar`, `contar`, `buscar`, `resumen`, `describir` y
+     `clasificar`) y las 138 pruebas.
+  4. Conservar el historial de `docs/prompts.md` y añadir esta entrada 5.6 con
+     el objetivo, el prompt, las decisiones, los archivos y los resultados.
+- **Archivos afectados:** modificados `tests/conftest.py`,
+  `tests/test_acciones.py`, `tests/test_listar.py`, `README.md`,
+  `docs/adr/ADR-0001.md` y `docs/prompts.md`. Sin cambios en `src/`,
+  `acciones.json`, `opencode.json` ni en el resto de pruebas.
+- **Resultado obtenido:** `uv run ruff check .` sin errores;
+  `uv run ruff format .` reformateó un único archivo y
+  `uv run ruff format --check .` informa de 30 archivos ya formateados;
+  `uv run pytest -q` supera **138 pruebas**; `git diff --check` sin errores;
+  `git status --short` muestra únicamente los seis archivos modificados
+  anteriores. Todas las escrituras de fixtures derivan de
+  `Path.home() / "pruebas-tareas"`; no quedan usos de `tmp_path`, `tempfile`,
+  `TemporaryDirectory`, `mkdtemp` ni `gettempdir` en `tests/`.
+- **Aprobación realizada por el usuario:** aprobación definitiva del plan
+  R-04 y R-05 en la conversación (texto citado arriba), con la decisión de
+  incluir el refactor de `test_listar_ruta_predeterminada` y la entrada 5.6.
