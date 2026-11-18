@@ -98,11 +98,16 @@ def _solicitar_texto(
             "La respuesta del servicio de IA no es JSON válido"
         ) from exc
     try:
-        texto = str(datos["choices"][0]["message"]["content"]).strip()
+        contenido = datos["choices"][0]["message"]["content"]
     except (KeyError, IndexError, TypeError) as exc:
         raise IANoDisponibleError(
             "La respuesta del servicio de IA no tiene el formato esperado"
         ) from exc
+    if contenido is None:
+        raise IANoDisponibleError(
+            "La respuesta del servicio de IA no tiene el formato esperado"
+        )
+    texto = str(contenido).strip()
     if not texto:
         raise IANoDisponibleError(mensaje_vacio)
     return texto

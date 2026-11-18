@@ -13,7 +13,7 @@ Funcionalidades actuales (todas de **solo lectura** sobre el sistema de ficheros
 
 | Comando | Descripción |
 |---|---|
-| `version` | Muestra la versión de la aplicación. |
+| `version` / `--version` | Muestra la versión de la aplicación. |
 | `listar` | Lista el contenido de una carpeta (nombre, tipo, tamaño y fecha). |
 | `contar` | Cuenta los ficheros de una carpeta. |
 | `buscar` | Busca ficheros por nombre o extensión. |
@@ -100,6 +100,12 @@ uv run python -m cli_tareas.main --help
 
 ```powershell
 uv run python -m cli_tareas.main version
+```
+
+También se puede consultar con la opción global `--version`:
+
+```powershell
+uv run python -m cli_tareas.main --version
 ```
 
 ### `listar` — listar una carpeta

@@ -49,6 +49,25 @@ consola = Console()
 ERRORES_PREPARACION = (ErrorAccion, FileNotFoundError, ValueError, TypeError)
 
 
+def _mostrar_version(valor: bool) -> None:
+    if valor:
+        print(f"cli-tareas {__version__}")
+        raise typer.Exit()
+
+
+@app.callback()
+def _principal(
+    mostrar_version: bool = typer.Option(
+        False,
+        "--version",
+        callback=_mostrar_version,
+        is_eager=True,
+        help="Muestra la versión de la aplicación y sale.",
+    ),
+) -> None:
+    pass
+
+
 def _error_json(exc: Exception) -> str:
     return json.dumps({"error": str(exc)}, ensure_ascii=False)
 
