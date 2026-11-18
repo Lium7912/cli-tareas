@@ -32,7 +32,7 @@ repo) y se validan en `src/cli_tareas/acciones.py`. Nada se hardcodea.
 - Leer `docs/adr/ADR-0001.md` para respetar la arquitectura y no contradecir
   decisiones ya aceptadas.
 - Identificar si la petición modifica una acción existente (riesgo de romper
-  las 53 pruebas actuales) o crea una nueva.
+  las 63 pruebas actuales) o crea una nueva.
 
 ### 2. Diseñar y pedir aprobación
 Presentar al usuario un plan con:

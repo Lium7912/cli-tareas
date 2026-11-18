@@ -35,9 +35,15 @@ ESQUEMAS: dict[str, dict[str, type]] = {
         "descripcion": str,
         "ruta_predeterminada": str,
     },
+    "describir": {
+        "activa": bool,
+        "descripcion": str,
+        "ruta_predeterminada": str,
+        "max_ficheros": int,
+    },
 }
 
-CLAVES_POSITIVAS = {"max_resultados"}
+CLAVES_POSITIVAS = {"max_resultados", "max_ficheros"}
 
 
 def cargar_acciones(ruta: Path | None = None) -> dict:

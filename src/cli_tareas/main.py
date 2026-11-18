@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import typer
@@ -11,8 +12,19 @@ from cli_tareas.buscar import (
     limitar_resultados,
 )
 from cli_tareas.contar import construir_texto, contar_entradas
-from cli_tareas.excepciones import ErrorAccion
-from cli_tareas.ficheros import obtener_entradas, ordenar_entradas, resolver_ruta
+from cli_tareas.describir import (
+    construir_salida_json,
+    construir_tabla_descripciones,
+    describir_determinista,
+)
+from cli_tareas.excepciones import ErrorAccion, IANoDisponibleError
+from cli_tareas.ficheros import (
+    formatear_fecha,
+    obtener_entradas,
+    ordenar_entradas,
+    resolver_ruta,
+)
+from cli_tareas.ia import configuracion_ia, pedir_descripcion
 from cli_tareas.listar import construir_tabla
 from cli_tareas.resumen import calcular_resumen, construir_tabla_resumen
 
@@ -25,11 +37,16 @@ consola = Console()
 ERRORES_PREPARACION = (ErrorAccion, FileNotFoundError, ValueError, TypeError)
 
 
+def _error_json(exc: Exception) -> str:
+    return json.dumps({"error": str(exc)}, ensure_ascii=False)
+
+
 def _iniciar(
     nombre: str,
     ruta: Path | None,
     simular: bool,
     mensaje_simulacion: str,
+    json_salida: bool = False,
 ) -> tuple[dict, Path]:
     """Carga la configuración de la acción y resuelve la ruta a tratar."""
     try:
@@ -37,7 +54,7 @@ def _iniciar(
         config = obtener_config(nombre, acciones)
         ruta_resuelta = resolver_ruta(config, ruta)
     except ERRORES_PREPARACION as exc:
-        print(f"Error: {exc}")
+        print(_error_json(exc) if json_salida else f"Error: {exc}")
         raise typer.Exit(code=1) from exc
     if simular:
         print(f"[simulación] {mensaje_simulacion.format(ruta=ruta_resuelta)}")
@@ -45,8 +62,8 @@ def _iniciar(
     return config, ruta_resuelta
 
 
-def _fallar(exc: Exception) -> typer.Exit:
-    print(f"Error: {exc}")
+def _fallar(exc: Exception, json_salida: bool = False) -> typer.Exit:
+    print(_error_json(exc) if json_salida else f"Error: {exc}")
     return typer.Exit(code=1)
 
 
@@ -177,6 +194,86 @@ def resumen(
         raise _fallar(exc) from exc
 
     consola.print(construir_tabla_resumen(datos, ruta_resuelta))
+
+
+@app.command()
+def describir(
+    ruta: Path | None = typer.Argument(
+        None,
+        help="Carpeta a describir; por defecto, la ruta_predeterminada de acciones.json",
+    ),
+    simular: bool = typer.Option(
+        False,
+        "--simular",
+        help="Ejecuta en modo simulación (sin efectos externos ni llamadas de red)",
+    ),
+    sin_ia: bool = typer.Option(
+        False,
+        "--sin-ia",
+        help="Genera descripciones deterministas a partir de los metadatos, sin IA ni red",
+    ),
+    json_salida: bool = typer.Option(
+        False,
+        "--json",
+        help="Salida en JSON (sin colores ni decoración)",
+    ),
+) -> None:
+    """Genera descripciones en español de los ficheros de una carpeta (solo metadatos)."""
+    config, ruta_resuelta = _iniciar(
+        "describir",
+        ruta,
+        simular,
+        "Se describirían los ficheros de: {ruta}",
+        json_salida=json_salida,
+    )
+    max_ficheros = int(config.get("max_ficheros", 10))
+    try:
+        entradas = obtener_entradas(ruta_resuelta, incluir_carpetas=True)
+        entradas = ordenar_entradas(entradas, "nombre")[:max_ficheros]
+    except ErrorAccion as exc:
+        raise _fallar(exc, json_salida=json_salida) from exc
+
+    metas = [
+        {
+            "nombre": entrada["nombre"],
+            "tipo": entrada["tipo"],
+            "tamano": entrada["tamano"],
+            "modificado": formatear_fecha(entrada["modificado"]),
+        }
+        for entrada in entradas
+    ]
+    if sin_ia:
+        origen = "determinista"
+        filas = [
+            {**meta, "descripcion": describir_determinista(meta)} for meta in metas
+        ]
+    else:
+        origen = "ia"
+        try:
+            config_ia = configuracion_ia()
+            filas = [
+                {**meta, "descripcion": pedir_descripcion(meta, config_ia)}
+                for meta in metas
+            ]
+        except IANoDisponibleError as exc:
+            if json_salida:
+                print(_error_json(exc))
+                raise typer.Exit(code=1) from exc
+            print(f"Error: {exc}")
+            consola.print(
+                "[yellow]Puedes usar --sin-ia o las acciones sin IA: "
+                "listar, contar, buscar, resumen[/yellow]"
+            )
+            raise typer.Exit(code=1) from exc
+
+    if json_salida:
+        print(construir_salida_json(filas, ruta_resuelta, origen))
+    else:
+        consola.print(construir_tabla_descripciones(filas, ruta_resuelta, origen))
+        if origen == "ia":
+            consola.print(
+                "[dim]Descripciones generadas por IA: pueden contener inexactitudes.[/dim]"
+            )
 
 
 if __name__ == "__main__":

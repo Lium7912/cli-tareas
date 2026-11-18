@@ -7,7 +7,7 @@ CLI de línea de comandos para **gestionar tareas asistidas por IA**, desarrolla
 - Interfaz de terminal coherente, con ayuda autogenerada y salida formateada con tablas.
 - **Acciones configurables sin tocar el código fuente**, mediante `acciones.json`.
 - **Seguridad**: modo `--simular` para prever el efecto de una operación antes de ejecutarla, validación estricta de la configuración y límite de resultados.
-- **Calidad comprobable**: 53 pruebas automatizadas superadas y lint limpio con Ruff.
+- **Calidad comprobable**: 63 pruebas automatizadas superadas y lint limpio con Ruff.
 
 Funcionalidades actuales (todas de **solo lectura** sobre el sistema de ficheros):
 
@@ -18,6 +18,7 @@ Funcionalidades actuales (todas de **solo lectura** sobre el sistema de ficheros
 | `contar` | Cuenta los ficheros de una carpeta. |
 | `buscar` | Busca ficheros por nombre o extensión. |
 | `resumen` | Resume una carpeta: nº de ficheros, tipos y tamaño total. |
+| `describir` | Genera descripciones en español de los ficheros usando IA (o modo determinista con `--sin-ia`). |
 
 ## Tecnologías y dependencias
 
@@ -144,6 +145,26 @@ Si la búsqueda devuelve más resultados que `max_resultados` (configurado en `a
 uv run python -m cli_tareas.main resumen
 ```
 
+### `describir` — describir ficheros (capa IA)
+
+Genera una descripción en español de cada fichero y carpeta de primer nivel,
+**a partir de únicamente sus metadatos** (nombre, tipo, tamaño y fecha):
+nunca se envía el contenido de los ficheros.
+
+```powershell
+# Con IA (requiere configurar las variables de entorno, ver «Capa de IA»)
+uv run python -m cli_tareas.main describir
+
+# Modo determinista, sin IA ni red (no requiere ninguna configuración)
+uv run python -m cli_tareas.main describir --sin-ia
+
+# Salida en JSON (sin colores, apta para tuberías)
+uv run python -m cli_tareas.main describir --json --sin-ia
+```
+
+`max_ficheros` (en `acciones.json`, por defecto 10) limita cuántos elementos
+se describen por orden.
+
 ### Ayuda de cada comando
 
 ```powershell
@@ -160,7 +181,46 @@ uv run python -m cli_tareas.main listar --simular
 
 uv run python -m cli_tareas.main buscar --termino informe --simular
 # Salida: [simulación] Se buscarían ficheros (nombre con «informe») en: <ruta>
+
+uv run python -m cli_tareas.main describir --simular
+# Salida: [simulación] Se describirían los ficheros de: <ruta>
 ```
+
+`describir --simular` no realiza ninguna llamada de red ni exige ninguna
+variable de entorno: la simulación se corta antes de la capa de IA.
+
+## Capa de IA y modo sin red
+
+La acción `describir` llama a un **endpoint compatible con la API de OpenAI**
+(el formato usado por los modelos locales del centro, p. ej. ollama, y por
+OpenCode). La configuración va **exclusivamente por variables de entorno**,
+nunca en el repo; `.env.example` documenta los nombres sin valores reales:
+
+| Variable | Papel |
+|---|---|
+| `TAREAS_API_BASE` | URL base del servicio (obligatoria para usar IA). |
+| `TAREAS_MODELO` | Nombre del modelo (obligatorio para usar IA). |
+| `TAREAS_API_KEY` | Clave, solo si el servicio la exige (opcional). |
+| `TAREAS_IA_TIMEOUT` | Segundos de espera (opcional, por defecto 30). |
+
+Cuando el centro facilite los datos de conexión, copia `.env.example` a
+`.env`, completa los valores y ejecuta:
+
+```powershell
+# Cargar las variables del .env y lanzar la CLI
+uv run --env-file .env python -m cli_tareas.main describir
+```
+
+**Modo sin red**: si falta configuración, no hay conexión o el servicio
+responde con error, la CLI lo explica en una línea (sin traceback, sin
+secretos), recuerda las alternativas (`--sin-ia` y las acciones sin IA:
+`listar`, `contar`, `buscar`, `resumen`) y termina con código de salida 1.
+Con `--sin-ia` se generan descripciones deterministas a partir de los
+metadatos, etiquetadas como «determinista», sin IA ni red.
+
+Las peticiones a la IA contienen **solo metadatos** (nombre, tipo, tamaño y
+fecha); nunca el contenido de los ficheros. La decisión completa está en
+[`docs/adr/ADR-0002.md`](docs/adr/ADR-0002.md).
 
 ## Configuración: `acciones.json`
 
@@ -191,6 +251,12 @@ Las acciones se definen en `acciones.json`, en la **raíz del proyecto**. Nunca 
     "activa": true,
     "descripcion": "Resumen de una carpeta: ficheros, tipos y tamaño total",
     "ruta_predeterminada": "~/pruebas-tareas"
+  },
+  "describir": {
+    "activa": true,
+    "descripcion": "Genera descripciones en español de los ficheros de una carpeta usando IA",
+    "ruta_predeterminada": "~/pruebas-tareas",
+    "max_ficheros": 10
   }
 }
 ```
@@ -221,6 +287,7 @@ uv run python -m cli_tareas.main listar C:\Users\Public
 - `incluir_carpetas`: controla si se incluyen las subcarpetas de **primer nivel** de la carpeta analizada. Lo usan `listar` (por defecto `true`: las subcarpetas aparecen como filas de la tabla) y `contar` (por defecto `false`: se cuentan solo los ficheros). No afecta a `buscar` ni a `resumen`, que procesan solo el primer nivel de la carpeta: `buscar` examina ficheros y carpetas (y excluye las carpetas cuando se filtra por extensión), y `resumen` cuenta ficheros y carpetas de primer nivel.
 - `ordenar_por`: criterio de ordenación de `listar` (valores válidos: `nombre`, `tamano`, `modificado`, `tipo`).
 - `max_resultados`: límite de resultados de `buscar` (debe ser un entero mayor que 0).
+- `max_ficheros`: límite de elementos que `describir` procesa por orden (debe ser un entero mayor que 0).
 
 La configuración se **valida estrictamente** al ejecutar cualquier acción (`src/cli_tareas/acciones.py`): existencia de la acción, que esté activa, tipos correctos de cada clave y valores positivos. Ante un error, la CLI muestra un mensaje claro y termina con código de salida 1.
 
@@ -229,6 +296,7 @@ La configuración se **valida estrictamente** al ejecutar cualquier acción (`sr
 ```text
 cli-tareas/
 ├── acciones.json              # Configuración declarativa de las acciones
+├── .env.example               # Nombres de las variables de entorno de IA (sin valores)
 ├── AGENTS.md                  # Reglas de desarrollo que guían al agente
 ├── opencode.json              # Permisos de OpenCode (edición, bash, secretos)
 ├── pyproject.toml             # Metadatos, dependencias y punto de entrada
@@ -236,22 +304,25 @@ cli-tareas/
 ├── docs/
 │   ├── prompts.md             # Registro de prompts del desarrollo agéntico
 │   └── adr/
-│       └── ADR-0001.md        # Decisiones de arquitectura
+│       ├── ADR-0001.md        # Decisiones de arquitectura
+│       └── ADR-0002.md        # Capa de IA y modo sin red
 ├── src/cli_tareas/
 │   ├── main.py                # Comandos Typer y orquestación (capa CLI)
 │   ├── acciones.py            # Carga, validación y esquemas de acciones.json
 │   ├── ficheros.py            # Dominio: resolver/validar/listar entradas
+│   ├── ia.py                  # Capa de IA: configuración y llamada al modelo
 │   ├── listar.py              # Tabla de listar (presentación)
 │   ├── contar.py              # Texto de contar (presentación)
 │   ├── buscar.py              # Tabla de buscar (presentación)
 │   ├── resumen.py             # Tabla de resumen (presentación)
+│   ├── describir.py           # Tabla/JSON de describir (presentación)
 │   └── excepciones.py         # Jerarquía propia de errores (ErrorAccion)
-└── tests/                     # 53 pruebas automatizadas (pytest)
+└── tests/                     # 63 pruebas automatizadas (pytest)
 ```
 
 ## Pruebas automatizadas (pytest)
 
-Las pruebas cubren la lógica de acciones, la resolución de rutas, cada comando, el modo `--simular`, la desactivación de acciones y los errores de configuración:
+Las pruebas cubren la lógica de acciones, la resolución de rutas, cada comando, el modo `--simular`, la desactivación de acciones, los errores de configuración y la capa de IA (con la red simulada; nunca se llama a un servicio real en las pruebas):
 
 ```powershell
 uv run pytest
@@ -268,7 +339,7 @@ uv run ruff format .     # formato automático
 
 ## Seguridad y protección de información privada
 
-- **Sin secretos en el repo**: nunca se guardan claves, tokens ni contraseñas en el código ni en archivos versionados. Los valores sensibles irían por variables de entorno (`.env`, protegido por `.gitignore`, documentado en `.env.example` sin valores reales). El proyecto actual no requiere ninguna clave.
+- **Sin secretos en el repo**: nunca se guardan claves, tokens ni contraseñas en el código ni en archivos versionados. Los valores sensibles van por variables de entorno (`.env`, protegido por `.gitignore`, documentado en `.env.example` sin valores reales). La capa de IA no necesita ninguna clave con los modelos locales del centro (`TAREAS_API_KEY` solo si el servicio la exige).
 - **Modo simulación**: toda acción con efectos acepta `--simular`.
 - **Interruptor centralizado**: cualquier acción puede desactivarse con `activa: false`.
 - **Validación de configuración** antes de actuar, con errores controlados y código de salida 1 (sin trazas brutas).
@@ -286,7 +357,7 @@ El desarrollo es **agéntico**, con [OpenCode](https://opencode.ai) guiado por `
 | `edit` | Con **confirmación del usuario**; denegado para los mismos tipos de archivo sensibles. |
 | `bash` | Con **confirmación del usuario**; **denegados** `git commit`, `git push`, `git reset`, `git restore`, `git checkout`, `git stash`, `git rebase` y `git clean` (operaciones de git de escritura). |
 
-El registro de los prompts importantes del desarrollo se documenta en [`docs/prompts.md`](docs/prompts.md).
+El registro de los prompts importantes del desarrollo se documenta en [`docs/prompts.md`](docs/prompts.md). La decisión de arquitectura de la capa de IA está en [`docs/adr/ADR-0002.md`](docs/adr/ADR-0002.md).
 
 ## Skill `acciones-json` y comando `/nueva-accion`
 
@@ -320,4 +391,4 @@ Las decisiones técnicas del proyecto están registradas en [`docs/adr/ADR-0001.
 - `ruta_predeterminada` apunta a `~/pruebas-tareas`, fuera del repo: la carpeta debe existir en cada máquina.
 - Añadir una acción nueva requiere tocar `acciones.json` **y** el bloque `ESQUEMAS` de `acciones.py` (duplicación parcial documentada en el ADR).
 - `acciones.json` no admite comentarios (limitación del formato JSON).
-- Sin integración real con IA todavía: la arquitectura está preparada para acciones futuras siguiendo el mismo motor de acciones.
+- La integración con IA está preparada (`describir`) pero pendiente de los datos de conexión de los modelos del centro (`TAREAS_API_BASE`/`TAREAS_MODELO`); hasta entonces funciona el modo `--sin-ia` y el resto de acciones.

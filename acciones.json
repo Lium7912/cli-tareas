@@ -22,5 +22,11 @@
     "activa": true,
     "descripcion": "Resumen de una carpeta: ficheros, tipos y tamaño total",
     "ruta_predeterminada": "~/pruebas-tareas"
+  },
+  "describir": {
+    "activa": true,
+    "descripcion": "Genera descripciones en español de los ficheros de una carpeta usando IA",
+    "ruta_predeterminada": "~/pruebas-tareas",
+    "max_ficheros": 10
   }
 }

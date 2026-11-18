@@ -198,3 +198,53 @@ Recordatorios al añadir entradas:
 - **Aprobación realizada por el usuario:** tras revisar el contenido
   propuesto en la conversación, el usuario eligió la opción «Actualizar»
   entre las opciones ofrecidas (aplicar las dos correcciones mínimas).
+
+### Entrada 5.3 — Capa de IA y acción `describir` (ADR-0002)
+
+- **Fecha:** 2026-11-18
+- **Objetivo:** implementar la primera acción con IA (`describir`) sobre el
+  motor de acciones existente, con la integración configurable por variables
+  de entorno, sin secretos en el repositorio, con modo sin red y alternativa
+  determinista, y con la documentación y el ADR-0002 actualizados.
+- **Texto del prompt (aprobación definitiva):**
+  > «Sí, apruebo definitivamente el plan actualizado para implementar la
+  > acción `describir`.
+  >
+  > Puedes comenzar la implementación en modo Build, respetando todas las
+  > condiciones acordadas.
+  >
+  > Como todavía no dispongo de las credenciales ni de los datos de conexión
+  > de los modelos del centro, deja la integración preparada para
+  > configurarse posteriormente mediante variables de entorno. No inventes
+  > credenciales ni fijes un proveedor externo como obligatorio.
+  >
+  > Comprueba que `--simular` no realiza ninguna llamada HTTP y que funciona
+  > sin conexión.
+  >
+  > Al terminar:
+  > 1. Ejecuta Ruff y comprueba el formato.
+  > 2. Ejecuta las 63 pruebas previstas.
+  > 3. Verifica `describir --simular`, `describir --sin-ia`,
+  >    `describir --json` y `--help`.
+  > 4. Muéstrame los archivos creados y modificados.
+  > 5. Muéstrame el resultado de `git status --short` y `git diff --check`.
+  >
+  > No hagas commits, push ni utilices `--auto`.
+  >
+  > Detente después de las verificaciones y espera mi autorización antes de
+  > cualquier cambio adicional.»
+- **Modelo utilizado:** `deepseek-v4.1-flash-free` mediante OpenCode.
+- **Archivos afectados:** creados `src/cli_tareas/ia.py`,
+  `src/cli_tareas/describir.py`, `tests/test_describir.py`, `.env.example`
+  y `docs/adr/ADR-0002.md`; modificados `src/cli_tareas/main.py`,
+  `src/cli_tareas/acciones.py`, `src/cli_tareas/excepciones.py`,
+  `acciones.json`, `README.md` y este documento.
+- **Resultado obtenido:** `uv run ruff check .` y `ruff format --check .` sin
+  errores; `uv run python -m pytest -q` con **63 pruebas superadas** (53
+  anteriores + 10 nuevas); verificados `describir --simular` (código 0, sin
+  red ni variables de entorno), `--sin-ia` (código 0), `--json --sin-ia`
+  (JSON válido) y `--json` sin configuración (error JSON controlado, código
+  1); `--help` general y de `describir` muestran la acción y sus opciones.
+  La capa de IA envía únicamente metadatos (nunca el contenido de ficheros).
+- **Aprobación realizada por el usuario:** aprobación explícita del plan
+  actualizado en la conversación (texto citado arriba).

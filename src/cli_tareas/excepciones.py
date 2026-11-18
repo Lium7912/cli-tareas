@@ -16,3 +16,7 @@ class ConfiguracionInvalidaError(ErrorAccion):
 
 class RutaInvalidaError(ErrorAccion):
     """La ruta indicada no existe, no es una carpeta o no es accesible."""
+
+
+class IANoDisponibleError(ErrorAccion):
+    """El servicio de IA no está configurado o no es accesible."""
