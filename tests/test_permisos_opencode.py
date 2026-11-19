@@ -34,6 +34,20 @@ DENEGACIONES_ESPECIFICAS = (
     "git *>*",
 )
 
+VARIANTES_NO_INDEX = (
+    "git diff --no-index .env README.md",
+    "git diff --no-ind .env README.md",
+    "git diff --no-in .env README.md",
+    "git diff --no-i .env README.md",
+    "git diff -U0 --no-index .env README.md",
+    "git diff --no-index -- .env README.md",
+    "git -C . diff --no-index .env README.md",
+    "git --no-pager diff --no-index .env README.md",
+    "git -c core.pager=cat diff --no-index .env README.md",
+    "git --git-dir=.git diff --no-index .env README.md",
+    "git.exe diff --no-index .env README.md",
+)
+
 
 def _config() -> dict:
     return json.loads(RUTA_CONFIG.read_text(encoding="utf-8"))
@@ -53,7 +67,7 @@ def _coincide(texto: str, patron: str) -> bool:
     escapado = escapado.replace("*", ".*").replace("?", ".")
     if escapado.endswith(" .*"):
         escapado = escapado[:-3] + "( .*)?"
-    banderas = re.IGNORECASE if sys.platform == "win32" else 0
+    banderas = re.IGNORECASE | re.DOTALL if sys.platform == "win32" else 0
     return re.fullmatch(escapado, normalizado, flags=banderas) is not None
 
 
@@ -62,6 +76,82 @@ def _evaluar(comando: str, bash: dict) -> str:
         if _coincide(comando, patron):
             return accion
     return "ask"
+
+
+def _segmentar(comando: str) -> list[str]:
+    segmentos: list[str] = []
+    actual: list[str] = []
+    comilla: str | None = None
+    escape = False
+    llaves = 0
+    indice = 0
+
+    def cerrar() -> None:
+        texto = "".join(actual).strip()
+        if texto:
+            segmentos.append(texto)
+        actual.clear()
+
+    while indice < len(comando):
+        caracter = comando[indice]
+        if escape:
+            actual.append(caracter)
+            escape = False
+            indice += 1
+            continue
+        if caracter == "`":
+            actual.append(caracter)
+            escape = True
+            indice += 1
+            continue
+        if comilla is not None:
+            actual.append(caracter)
+            if caracter == comilla:
+                comilla = None
+            indice += 1
+            continue
+        if caracter in {"'", '"'}:
+            comilla = caracter
+            actual.append(caracter)
+            indice += 1
+            continue
+        if caracter == "{":
+            llaves += 1
+            actual.append(caracter)
+            indice += 1
+            continue
+        if caracter == "}":
+            llaves = max(0, llaves - 1)
+            actual.append(caracter)
+            indice += 1
+            continue
+        if llaves == 0:
+            if caracter in {";", "\n", "\r"}:
+                cerrar()
+                indice += 1
+                continue
+            if caracter == "|":
+                cerrar()
+                indice += 2 if comando[indice : indice + 2] == "||" else 1
+                continue
+            if comando[indice : indice + 2] == "&&":
+                cerrar()
+                indice += 2
+                continue
+        actual.append(caracter)
+        indice += 1
+
+    cerrar()
+    return segmentos
+
+
+def _evaluar_compuesto(comando: str, bash: dict) -> str:
+    resultados = [_evaluar(segmento, bash) for segmento in _segmentar(comando)]
+    if "deny" in resultados:
+        return "deny"
+    if "ask" in resultados:
+        return "ask"
+    return "allow"
 
 
 def test_opencode_json_usa_sintaxis_v1() -> None:
@@ -158,3 +248,86 @@ def test_orden_de_reglas_de_la_allowlist() -> None:
 )
 def test_precedencia_y_resultados(comando: str, esperado: str) -> None:
     assert _evaluar(comando, _bash()) == esperado
+
+
+@pytest.mark.parametrize("comando", VARIANTES_NO_INDEX)
+def test_variantes_no_index_denegadas(comando: str) -> None:
+    assert _evaluar_compuesto(comando, _bash()) == "deny"
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Semántica de Windows")
+@pytest.mark.parametrize(
+    "comando",
+    (
+        "GIT DIFF --NO-INDEX .env README.md",
+        "git diff `\n--no-index .env README.md",
+    ),
+)
+def test_variantes_no_index_windows(comando: str) -> None:
+    assert _evaluar_compuesto(comando, _bash()) == "deny"
+
+
+@pytest.mark.parametrize(
+    ("comando", "esperado"),
+    [
+        ("git status; git diff --no-index .env README.md", "deny"),
+        ("git status; git commit -m x", "deny"),
+        ("git status; git diff --check", "allow"),
+        ("git status; git log --oneline -5", "allow"),
+        ("git status; git status --short", "allow"),
+        ("git status; Get-ChildItem", "ask"),
+        ("git status;\ngit diff --no-index .env README.md", "deny"),
+        (
+            "git status; git diff --check; git log --oneline -5",
+            "allow",
+        ),
+    ],
+)
+def test_comandos_compuestos(comando: str, esperado: str) -> None:
+    assert _evaluar_compuesto(comando, _bash()) == esperado
+
+
+@pytest.mark.parametrize(
+    ("comando", "esperado"),
+    [
+        ("git diff --no-index .env README.md | Out-File out.txt", "deny"),
+        ("git diff --no-index .env README.md | Select-String foo", "deny"),
+        ("git status | Out-File out.txt", "ask"),
+        ("git diff --check | Select-String foo", "ask"),
+        ("git log --oneline | Select-String foo", "ask"),
+        ("git status | git diff --no-index .env README.md", "deny"),
+        ("Get-Content x | git status", "ask"),
+        ("git status | git log --oneline -5", "allow"),
+    ],
+)
+def test_tuberias(comando: str, esperado: str) -> None:
+    assert _evaluar_compuesto(comando, _bash()) == esperado
+
+
+@pytest.mark.parametrize(
+    "comando",
+    (
+        "git diff > out.txt",
+        "git log >> out.txt",
+        "git show HEAD 2> err.txt",
+        "git status 2>&1",
+        "git diff --check > out.txt",
+        "git diff --no-index .env README.md > out.txt",
+        "git diff --no-index .env README.md 2>&1",
+    ),
+)
+def test_redirecciones_denegadas(comando: str) -> None:
+    assert _evaluar_compuesto(comando, _bash()) == "deny"
+
+
+@pytest.mark.parametrize(
+    "comando",
+    (
+        "git diff --no-ext-diff",
+        "git diff --no-textconv",
+        "git status --short",
+        "git log --oneline -5",
+    ),
+)
+def test_comandos_seguros_siguen_permitidos(comando: str) -> None:
+    assert _evaluar_compuesto(comando, _bash()) == "allow"

@@ -70,6 +70,12 @@ Reglas para registrar prompts:
   | `edit` | `*` con **confirmación (ask)**; **denegado** para `.env`, `.env.*`, `.pem`, `.key`, `.p12`; `.env.example` con confirmación |
   | `bash` | `*` con **confirmación (ask)**; **denegado**: `git commit`, `git push`, `git reset`, `git restore`, `git checkout`, `git stash`, `git rebase`, `git clean` (y sus variantes con argumentos) |
 
+  **Nota de actualización (2026-11-19):** la fila `bash` anterior refleja la
+  configuración inicial de la entrada 3.1. La allowlist vigente, con
+  `git *`/`git.exe *` denegados por defecto y las consultas de solo lectura
+  permitidas, se documenta en las entradas 5.7, 5.8 y 5.10, en `README.md` y
+  en `docs/trazabilidad.md`.
+
 - **Aprobación realizada por el usuario:** pendiente de documentar.
 
 ## 4. Pruebas de seguridad: autorización de comandos
@@ -578,3 +584,37 @@ Recordatorios al añadir entradas:
   que la denegación de `git diff --no-index` se aplica al reiniciar la sesión.
 - **Aprobación realizada por el usuario:** aprobación explícita de H-01 a H-04
   y de sus condiciones en la conversación, antes de editar archivos.
+
+### Entrada 5.10 — Seguridad, trazabilidad y documentación (H-06 a H-08)
+
+- **Fecha:** 2026-11-19
+- **Objetivo:** ampliar las pruebas de seguridad de `opencode.json` con
+  variantes de `git diff --no-index`, comandos compuestos, tuberías y
+  redirecciones (H-06); crear la matriz de trazabilidad R-01 a R-08,
+  identificando las definiciones inferidas (H-07); y corregir la documentación
+  de permisos, recuentos y limitaciones (H-08). Sin modificar `src/`,
+  `acciones.json` ni el comportamiento de las seis acciones.
+- **Texto del prompt (aprobación definitiva):**
+  > «Apruebo el plan y el mapa provisional de R-01 a R-08. Implementa
+  > únicamente los cambios descritos, identifica claramente los requisitos
+  > inferidos y ejecuta todas las verificaciones previstas. No realices
+  > commits, push, reset ni utilices --auto. Detente al terminar y muéstrame
+  > los resultados y el estado de Git.»
+- **Modelo utilizado:** `deepseek-v4.1-flash-free` mediante OpenCode 1.18.35.
+- **Archivos afectados:** modificado `tests/test_permisos_opencode.py`; creado
+  `docs/trazabilidad.md`; modificados `README.md`,
+  `docs/adr/ADR-0001.md` y `docs/prompts.md`. Sin cambios en `opencode.json`,
+  `src/`, `acciones.json` ni `tests/conftest.py`.
+- **Resultado obtenido:** `uv run pytest tests/test_permisos_opencode.py -q`
+  supera **85 pruebas**; `uv run pytest -q` supera **244 pruebas**;
+  `uv run ruff check .` sin errores; `uv run ruff format --check .` informa de
+  31 archivos ya formateados; `cmd /c "opencode --version"` devuelve
+  `1.18.35`; `cmd /c "opencode debug config"` confirma `git diff *--no-i*`
+  como `deny` y el orden de la allowlist. Las seis acciones responden a
+  `--simular`. `opencode.json`, `src/` y `acciones.json` no se modificaron.
+- **Limitaciones documentadas:** R-01, R-02, R-03 y R-06 son definiciones
+  inferidas al no conservarse el informe original del subagente `revisor`; la
+  allowlist Git es defensa en profundidad y no aislamiento absoluto. Las
+  tuberías se evalúan por segmentos y el destino puede quedar en `ask`.
+- **Aprobación realizada por el usuario:** aprobación explícita del plan y del
+  mapa provisional en la conversación (texto citado arriba).

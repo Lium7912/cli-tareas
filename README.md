@@ -7,7 +7,7 @@ CLI de línea de comandos para **gestionar tareas asistidas por IA**, desarrolla
 - Interfaz de terminal coherente, con ayuda autogenerada y salida formateada con tablas.
 - **Acciones configurables sin tocar el código fuente**, mediante `acciones.json`.
 - **Seguridad**: modo `--simular` para prever el efecto de una operación antes de ejecutarla, validación estricta de la configuración y límite de resultados.
-- **Calidad comprobable**: 204 pruebas automatizadas superadas y lint limpio con Ruff.
+- **Calidad comprobable**: 244 pruebas automatizadas superadas y lint limpio con Ruff.
 
 Funcionalidades actuales (todas de **solo lectura** sobre el sistema de ficheros):
 
@@ -351,6 +351,7 @@ cli-tareas/
 ├── uv.lock                    # Bloqueo reproducible de dependencias
 ├── docs/
 │   ├── prompts.md             # Registro de prompts del desarrollo agéntico
+│   ├── trazabilidad.md        # Matriz de hallazgos R-01 a R-08
 │   └── adr/
 │       ├── ADR-0001.md        # Decisiones de arquitectura
 │       └── ADR-0002.md        # Capa de IA y modo sin red
@@ -374,12 +375,12 @@ cli-tareas/
 │   ├── describir.py           # Tabla/JSON de describir (presentación)
 │   ├── clasificar.py          # Clasificación por extensión, tabla/JSON
 │   └── excepciones.py         # Jerarquía propia de errores (ErrorAccion)
-└── tests/                     # 204 pruebas automatizadas (pytest)
+└── tests/                     # 244 pruebas automatizadas (pytest)
 ```
 
 ## Pruebas automatizadas (pytest)
 
-Las pruebas cubren la lógica de acciones, la validación estricta de `acciones.json`, la resolución de rutas, cada comando, el modo `--simular`, la desactivación de acciones, los errores de configuración, la clasificación determinista, la capa de IA (con la red simulada; nunca se llama a un servicio real en las pruebas) y la allowlist Git de `opencode.json` (sintaxis V1, orden de reglas y comandos permitidos/denegados):
+Las pruebas cubren la lógica de acciones, la validación estricta de `acciones.json`, la resolución de rutas, cada comando, el modo `--simular`, la desactivación de acciones, los errores de configuración, la clasificación determinista, la capa de IA (con la red simulada; nunca se llama a un servicio real en las pruebas) y la allowlist Git de `opencode.json` (sintaxis V1, orden de reglas, comandos permitidos/denegados, variantes de `--no-index`, comandos compuestos, tuberías y redirecciones):
 
 ```powershell
 uv run pytest
@@ -400,7 +401,7 @@ uv run ruff format .     # formato automático
 - **Modo simulación**: toda acción con efectos acepta `--simular`.
 - **Interruptor centralizado**: cualquier acción puede desactivarse con `activa: false`.
 - **Validación de configuración** antes de actuar, con errores controlados y código de salida 1 (sin trazas brutas).
-- **Git de solo lectura para los agentes**: `opencode.json` deniega Git por defecto y solo permite consultas concretas (`git status`, `git diff`, `git log`, `git show` y `git --version`). El resto de operaciones, incluidas `commit`, `push`, `reset`, `merge`, `switch`, `checkout` y las variantes con opciones globales (`-C`, `-c`, `--git-dir`), quedan bloqueadas para las herramientas del agente. Sintaxis y precedencia verificadas con OpenCode 1.18.35 (`opencode debug config` y `opencode agent list`). Es una medida de **defensa en profundidad**, no un aislamiento absoluto: rutas completas a `git.exe`, alias, envoltorios de PowerShell/CMD, pipes y otra configuración de Git pueden eludir los patrones (ver limitaciones). Los commits que ejecutes manualmente en PowerShell no se ven afectados.
+- **Git de solo lectura para los agentes**: `opencode.json` deniega `git *` y `git.exe *` por defecto y solo permite `git status`, `git diff`, `git log`, `git show` y `git --version`. Deniega además `--out*`, `--ext-d*`, `--textc*`, `--no-i*` y cualquier redirección (`git *>*`). El resto de operaciones, incluidas `commit`, `push`, `reset`, `merge`, `switch`, `checkout` y las variantes con opciones globales (`-C`, `-c`, `--git-dir`), quedan bloqueadas para las herramientas del agente. Sintaxis y precedencia verificadas con OpenCode 1.18.35 (`opencode debug config`). Es una medida de **defensa en profundidad**, no un aislamiento absoluto: rutas completas a `git.exe`, alias, funciones, envoltorios de PowerShell/CMD y otra configuración de Git pueden eludir los patrones de prefijo. Las tuberías se evalúan por segmentos: si un segmento Git se deniega, el conjunto se deniega; el destino de la tubería puede quedar en `ask`. Los commits que ejecutes manualmente en PowerShell no se ven afectados.
 - **Alcance de solo lectura**: no existen acciones de escritura o borrado.
 - **Archivos de prueba mutables solo en `~/pruebas-tareas`**, nunca dentro del repo.
 - **Sin modo `--auto`** ni ejecución automática no supervisada; los commits y el push solo se hacen por petición explícita del usuario.
@@ -411,11 +412,11 @@ El desarrollo es **agéntico**, con [OpenCode](https://opencode.ai) guiado por `
 
 | Permiso | Regla |
 |---|---|
-| `read` | Permitido en general; **denegado** para `.env`, `.env.*`, `.pem`, `.key`, `.p12` (protección de secretos). |
-| `edit` | Con **confirmación del usuario**; denegado para los mismos tipos de archivo sensibles. |
-| `bash` | Con **confirmación del usuario** para comandos generales (no se conceden permisos amplios). Git se **deniega por defecto**; solo se permiten consultas de solo lectura: `git status`, `git diff`, `git log`, `git show` y `git --version`. Se bloquean además las opciones que escriben, ejecutan filtros o comparan rutas arbitrarias (`--output`, `--ext-diff`, `--textconv`, `--no-index`) y las redirecciones de Git. Los cambios en `opencode.json` se aplican al **reiniciar** la sesión de OpenCode. |
+| `read` | Permitido en general; **denegado** para `.env`, `.env.*`, `.pem`, `.key` y `.p12`; **permitido** para `.env.example` (protección de secretos). |
+| `edit` | Con **confirmación del usuario**; denegado para `.env`, `.env.*`, `.pem`, `.key` y `.p12`; `.env.example` requiere confirmación (`ask`). |
+| `bash` | Con **confirmación del usuario** para comandos generales. Git se **deniega por defecto** (`git *` y `git.exe *`); solo se permiten `git status`, `git diff`, `git log`, `git show` y `git --version`. Se bloquean las opciones que escriben, ejecutan filtros o comparan rutas arbitrarias (`--out*`, `--ext-d*`, `--textc*`, `--no-i*`) y las redirecciones (`git *>*`). Las tuberías se evalúan por segmentos. Los cambios en `opencode.json` se aplican al **reiniciar** la sesión de OpenCode. |
 
-El registro de los prompts importantes del desarrollo se documenta en [`docs/prompts.md`](docs/prompts.md). La decisión de arquitectura de la capa de IA está en [`docs/adr/ADR-0002.md`](docs/adr/ADR-0002.md).
+El registro de los prompts importantes del desarrollo se documenta en [`docs/prompts.md`](docs/prompts.md). La matriz de hallazgos y evidencias está en [`docs/trazabilidad.md`](docs/trazabilidad.md). La decisión de arquitectura de la capa de IA está en [`docs/adr/ADR-0002.md`](docs/adr/ADR-0002.md).
 
 ### Subagente `revisor`
 
@@ -432,8 +433,8 @@ Permisos destacados:
 |---|---|
 | `edit` | Denegado para todos los archivos (incluye crear y parchear). |
 | `read` | Permitido; denegado `.env`, `.env.*`, `.pem`, `.key` y `.p12`; `.env.example` permitido. |
-| `bash` | Denegado salvo `uv run ruff check .`, `uv run ruff format --check .`, `uv run pytest` y consultas de solo lectura de git (`status`, `diff`, `log`). |
-| `task`, `skill`, `webfetch`, `websearch` | Denegados. |
+| `bash` | Denegado salvo `uv run ruff check .`, `uv run ruff format --check .`, `uv run pytest`, `uv run pytest -q`, `uv run python -m pytest`, `uv run python -m pytest -q` y las consultas Git `git status`, `git status --short`, `git diff`, `git diff --check`, `git diff --stat` y `git log --oneline -10`. |
+| `task`, `skill`, `webfetch`, `websearch`, `question` | Denegados. |
 | `external_directory` | Denegado (no accede a `~/pruebas-tareas` ni a otras rutas externas). |
 
 Para usarlo, reinicia la sesión de OpenCode y pide al agente principal algo como:
@@ -479,6 +480,7 @@ Las decisiones técnicas del proyecto están registradas en [`docs/adr/ADR-0001.
 - `ruta_predeterminada` apunta a `~/pruebas-tareas`, fuera del repo: la carpeta debe existir en cada máquina.
 - Añadir una acción nueva requiere tocar `acciones.json` **y** el bloque `ESQUEMAS` de `acciones.py` (duplicación parcial documentada en el ADR).
 - `acciones.json` no admite comentarios (limitación del formato JSON).
-- La allowlist Git de `opencode.json` es una medida de **defensa en profundidad**, no un aislamiento absoluto: rutas completas a `git.exe`, alias de Git, envoltorios de PowerShell/CMD y otros procesos pueden eludir los patrones de prefijo. Además, un pipe puede dividir el comando y evaluar por separado el programa de destino. Los commits manuales del usuario no están restringidos.
+- La allowlist Git de `opencode.json` es una medida de **defensa en profundidad**, no un aislamiento absoluto: rutas completas a `git.exe`, alias, funciones, `cmd /c`, `powershell -Command`, `Start-Process` y otros envoltorios pueden eludir los patrones de prefijo. Los patrones son textuales: pueden producir falsos positivos (`git log --grep='>'`) o falsos negativos si el comando se transforma antes de ejecutarse. La configuración de Git (`core.pager`, drivers externos de diff/textconv) queda fuera del filtro.
+- Las tuberías se evalúan por segmentos: un `git` denegado bloquea el conjunto, pero el programa de destino de una tubería se evalúa por separado y puede quedar en `ask`. `Out-File`, `Set-Content`, `Add-Content`, `Tee-Object` y procesos equivalentes no se consideran redirecciones de Git; requieren aprobación.
 - Los cambios en `opencode.json` no se recargan en una sesión de OpenCode ya abierta: hasta reiniciarla, siguen vigentes las reglas cargadas al inicio. La comprobación estática (`opencode debug config` y `tests/test_permisos_opencode.py`) refleja la configuración nueva, pero la prueba en caliente requiere una sesión nueva.
 - La integración con IA está preparada (`describir` y `clasificar`) pero pendiente de los datos de conexión de los modelos del centro (`TAREAS_API_BASE`/`TAREAS_MODELO`); hasta entonces funcionan el modo `--sin-ia` y el resto de acciones.
