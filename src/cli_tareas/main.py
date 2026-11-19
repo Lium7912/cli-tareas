@@ -101,7 +101,9 @@ def _iniciar(
                 )
             )
         else:
-            print(f"[simulación] {mensaje_simulacion.format(ruta=ruta_resuelta)}")
+            print(
+                f"[simulación] {mensaje_simulacion.replace('{ruta}', str(ruta_resuelta))}"
+            )
         raise typer.Exit()
     return config, ruta_resuelta
 

@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from cli_tareas.buscar import buscar_entradas, limitar_resultados
@@ -97,6 +98,22 @@ def test_buscar_simular() -> None:
     resultado = runner.invoke(app, ["buscar", "--simular"])
     assert resultado.exit_code == 0
     assert "simulación" in resultado.output
+
+
+@pytest.mark.parametrize("termino", ["{foo}", "{}", "{0}"])
+def test_buscar_simular_termino_con_llaves(termino: str) -> None:
+    resultado = runner.invoke(app, ["buscar", "--simular", "--termino", termino])
+    assert resultado.exit_code == 0
+    assert "simulación" in resultado.output
+    assert termino in resultado.output
+
+
+@pytest.mark.parametrize("extension", ["{.txt}", "{}"])
+def test_buscar_simular_extension_con_llaves(extension: str) -> None:
+    resultado = runner.invoke(app, ["buscar", "--simular", "--extension", extension])
+    assert resultado.exit_code == 0
+    assert "simulación" in resultado.output
+    assert extension in resultado.output
 
 
 def test_buscar_accion_desactivada(

@@ -17,8 +17,9 @@ def configuracion_ia() -> dict:
             "IA no configurada: define TAREAS_API_BASE y TAREAS_MODELO "
             "en el entorno (ver .env.example)"
         )
+    valor_timeout = os.environ.get("TAREAS_IA_TIMEOUT", "").strip()
     try:
-        timeout = float(os.environ.get("TAREAS_IA_TIMEOUT", TIMEOUT_DEFECTO))
+        timeout = float(valor_timeout) if valor_timeout else TIMEOUT_DEFECTO
     except ValueError as exc:
         raise ConfiguracionInvalidaError(
             "La variable TAREAS_IA_TIMEOUT debe ser un número mayor que 0"
@@ -72,12 +73,17 @@ def _solicitar_texto(
     cabeceras = {"Content-Type": "application/json"}
     if config["api_key"]:
         cabeceras["Authorization"] = f"Bearer {config['api_key']}"
-    peticion = urllib.request.Request(
-        f"{config['api_base']}/chat/completions",
-        data=cuerpo,
-        headers=cabeceras,
-        method="POST",
-    )
+    try:
+        peticion = urllib.request.Request(
+            f"{config['api_base']}/chat/completions",
+            data=cuerpo,
+            headers=cabeceras,
+            method="POST",
+        )
+    except ValueError as exc:
+        raise ConfiguracionInvalidaError(
+            "La URL del servicio de IA no es válida (revisa TAREAS_API_BASE)"
+        ) from exc
     try:
         with urllib.request.urlopen(peticion, timeout=config["timeout"]) as respuesta:
             datos = json.loads(respuesta.read().decode("utf-8"))
@@ -96,6 +102,14 @@ def _solicitar_texto(
     except json.JSONDecodeError as exc:
         raise IANoDisponibleError(
             "La respuesta del servicio de IA no es JSON válido"
+        ) from exc
+    except UnicodeDecodeError as exc:
+        raise IANoDisponibleError(
+            "La respuesta del servicio de IA no está codificada en UTF-8"
+        ) from exc
+    except ValueError as exc:
+        raise IANoDisponibleError(
+            "La URL del servicio de IA no es válida (revisa TAREAS_API_BASE)"
         ) from exc
     try:
         contenido = datos["choices"][0]["message"]["content"]

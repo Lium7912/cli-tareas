@@ -7,7 +7,7 @@ CLI de línea de comandos para **gestionar tareas asistidas por IA**, desarrolla
 - Interfaz de terminal coherente, con ayuda autogenerada y salida formateada con tablas.
 - **Acciones configurables sin tocar el código fuente**, mediante `acciones.json`.
 - **Seguridad**: modo `--simular` para prever el efecto de una operación antes de ejecutarla, validación estricta de la configuración y límite de resultados.
-- **Calidad comprobable**: 189 pruebas automatizadas superadas y lint limpio con Ruff.
+- **Calidad comprobable**: 204 pruebas automatizadas superadas y lint limpio con Ruff.
 
 Funcionalidades actuales (todas de **solo lectura** sobre el sistema de ficheros):
 
@@ -374,7 +374,7 @@ cli-tareas/
 │   ├── describir.py           # Tabla/JSON de describir (presentación)
 │   ├── clasificar.py          # Clasificación por extensión, tabla/JSON
 │   └── excepciones.py         # Jerarquía propia de errores (ErrorAccion)
-└── tests/                     # 189 pruebas automatizadas (pytest)
+└── tests/                     # 204 pruebas automatizadas (pytest)
 ```
 
 ## Pruebas automatizadas (pytest)
@@ -413,7 +413,7 @@ El desarrollo es **agéntico**, con [OpenCode](https://opencode.ai) guiado por `
 |---|---|
 | `read` | Permitido en general; **denegado** para `.env`, `.env.*`, `.pem`, `.key`, `.p12` (protección de secretos). |
 | `edit` | Con **confirmación del usuario**; denegado para los mismos tipos de archivo sensibles. |
-| `bash` | Con **confirmación del usuario** para comandos generales (no se conceden permisos amplios). Git se **deniega por defecto**; solo se permiten consultas de solo lectura: `git status`, `git diff`, `git log`, `git show` y `git --version`. Se bloquean además las opciones que escriben o ejecutan filtros (`--output`, `--ext-diff`, `--textconv`) y las redirecciones de Git. |
+| `bash` | Con **confirmación del usuario** para comandos generales (no se conceden permisos amplios). Git se **deniega por defecto**; solo se permiten consultas de solo lectura: `git status`, `git diff`, `git log`, `git show` y `git --version`. Se bloquean además las opciones que escriben, ejecutan filtros o comparan rutas arbitrarias (`--output`, `--ext-diff`, `--textconv`, `--no-index`) y las redirecciones de Git. Los cambios en `opencode.json` se aplican al **reiniciar** la sesión de OpenCode. |
 
 El registro de los prompts importantes del desarrollo se documenta en [`docs/prompts.md`](docs/prompts.md). La decisión de arquitectura de la capa de IA está en [`docs/adr/ADR-0002.md`](docs/adr/ADR-0002.md).
 
@@ -480,4 +480,5 @@ Las decisiones técnicas del proyecto están registradas en [`docs/adr/ADR-0001.
 - Añadir una acción nueva requiere tocar `acciones.json` **y** el bloque `ESQUEMAS` de `acciones.py` (duplicación parcial documentada en el ADR).
 - `acciones.json` no admite comentarios (limitación del formato JSON).
 - La allowlist Git de `opencode.json` es una medida de **defensa en profundidad**, no un aislamiento absoluto: rutas completas a `git.exe`, alias de Git, envoltorios de PowerShell/CMD y otros procesos pueden eludir los patrones de prefijo. Además, un pipe puede dividir el comando y evaluar por separado el programa de destino. Los commits manuales del usuario no están restringidos.
+- Los cambios en `opencode.json` no se recargan en una sesión de OpenCode ya abierta: hasta reiniciarla, siguen vigentes las reglas cargadas al inicio. La comprobación estática (`opencode debug config` y `tests/test_permisos_opencode.py`) refleja la configuración nueva, pero la prueba en caliente requiere una sesión nueva.
 - La integración con IA está preparada (`describir` y `clasificar`) pero pendiente de los datos de conexión de los modelos del centro (`TAREAS_API_BASE`/`TAREAS_MODELO`); hasta entonces funcionan el modo `--sin-ia` y el resto de acciones.

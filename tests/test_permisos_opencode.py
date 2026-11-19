@@ -30,6 +30,7 @@ DENEGACIONES_ESPECIFICAS = (
     "git diff *--textc*",
     "git log *--textc*",
     "git show *--textc*",
+    "git diff *--no-i*",
     "git *>*",
 )
 
@@ -90,6 +91,12 @@ def test_comandos_git_de_lectura_permitidos() -> None:
         assert bash[patron] == "allow"
 
 
+def test_denegaciones_especificas_presentes() -> None:
+    bash = _bash()
+    for patron in DENEGACIONES_ESPECIFICAS:
+        assert bash[patron] == "deny"
+
+
 def test_orden_de_reglas_de_la_allowlist() -> None:
     claves = list(_bash())
     indice = claves.index
@@ -113,6 +120,9 @@ def test_orden_de_reglas_de_la_allowlist() -> None:
         ("git diff", "allow"),
         ("git diff --check", "allow"),
         ("git diff --stat", "allow"),
+        ("git diff --no-index .env README.md", "deny"),
+        ("git diff --no-ind .env README.md", "deny"),
+        ("git diff --no-in .env README.md", "deny"),
         ("git log", "allow"),
         ("git log --oneline -10", "allow"),
         ("git show HEAD", "allow"),

@@ -540,3 +540,41 @@ Recordatorios al añadir entradas:
 - **Aprobación realizada por el usuario:** aprobación explícita en la
   conversación (texto citado arriba), tras presentar el diseño definitivo de
   la allowlist y de R-08.
+
+---
+
+### Entrada 5.9 — Corrección de hallazgos de la auditoría (H-01 a H-04)
+
+- **Fecha:** 2026-11-19
+- **Objetivo:** aplicar los cuatro hallazgos aprobados de la auditoría final:
+  bloquear `git diff --no-index` en los permisos de OpenCode (H-01), convertir
+  en errores controlados las respuestas no UTF-8 y las URLs inválidas de la
+  capa de IA (H-02), evitar que llaves en `--termino`/`--extension` rompan el
+  mensaje de `--simular` (H-03) y tratar `TAREAS_IA_TIMEOUT` vacío como el
+  valor predeterminado de 30 s (H-04).
+- **Texto del prompt:** transcripción resumida (el texto literal completo no
+  se conserva en el contexto de esta sesión):
+  > «Revisa el proyecto completo en solo lectura y devuelve un informe con
+  > hallazgos ordenados por gravedad.»
+  >
+  > «Apruebo implementar H-01 a H-04 con estas condiciones: mantener las seis
+  > acciones y las interfaces públicas, añadir pruebas por cada corrección,
+  > compatibilidad con OpenCode 1.18.35, sin dependencias nuevas, sin commits
+  > ni `--auto`, y no modificar `acciones.json`.»
+- **Modelo utilizado:** `deepseek-v4.1-flash-free` mediante OpenCode 1.18.35.
+- **Archivos afectados:** modificados `opencode.json`,
+  `src/cli_tareas/ia.py`, `src/cli_tareas/main.py`, `tests/test_ia.py`,
+  `tests/test_buscar.py`, `tests/test_describir.py`,
+  `tests/test_permisos_opencode.py`, `.env.example`, `README.md`,
+  `docs/adr/ADR-0001.md`, `docs/prompts.md` y
+  `.opencode/skills/acciones-json/SKILL.md`. Sin cambios en `acciones.json`.
+- **Resultado obtenido:** `uv run ruff check .` sin errores;
+  `uv run ruff format --check .` sin cambios pendientes; `uv run pytest -q`
+  supera **204 pruebas** (189 anteriores + 15 nuevas); `opencode debug config`
+  resuelve `"git diff *--no-i*": "deny"`; las seis acciones responden a
+  `--simular`; `buscar --simular --termino '{foo}'`, `'{}'` y `'{0}'` ya no
+  falla; `git diff --check` sigue permitido. Limitación documentada: una
+  sesión de OpenCode ya abierta mantiene las reglas cargadas al inicio, por lo
+  que la denegación de `git diff --no-index` se aplica al reiniciar la sesión.
+- **Aprobación realizada por el usuario:** aprobación explícita de H-01 a H-04
+  y de sus condiciones en la conversación, antes de editar archivos.

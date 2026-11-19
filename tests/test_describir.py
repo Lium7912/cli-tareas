@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from typing import Self
 
 import pytest
 from typer.testing import CliRunner
@@ -74,6 +75,57 @@ def test_describir_simular_json(carpeta_contenido: Path, sin_red, sin_env_ia) ->
         "simulacion": True,
         "ruta": str(carpeta_contenido),
     }
+
+
+class _RespuestaFalsa:
+    def __init__(self, cuerpo: bytes) -> None:
+        self._cuerpo = cuerpo
+
+    def read(self) -> bytes:
+        return self._cuerpo
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, *args: object) -> bool:
+        return False
+
+
+def test_describir_respuesta_no_utf8_sin_traceback(
+    carpeta_contenido: Path,
+    env_ia,
+    monkeypatch: pytest.MonkeyPatch,
+    acciones_temporales,
+) -> None:
+    monkeypatch.setattr(
+        "urllib.request.urlopen", lambda *args, **kwargs: _RespuestaFalsa(b"\xff\xfe")
+    )
+    acciones_temporales(
+        "describir",
+        {"activa": True, "ruta_predeterminada": str(carpeta_contenido)},
+    )
+    resultado = runner.invoke(app, ["describir"])
+    assert resultado.exit_code == 1
+    assert "Traceback" not in resultado.output
+    assert "UTF-8" in resultado.output
+
+
+def test_describir_api_base_invalida_sin_traceback(
+    carpeta_contenido: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    acciones_temporales,
+) -> None:
+    monkeypatch.setenv("TAREAS_API_BASE", "no-es-url")
+    monkeypatch.setenv("TAREAS_MODELO", "modelo-prueba")
+    monkeypatch.delenv("TAREAS_IA_TIMEOUT", raising=False)
+    acciones_temporales(
+        "describir",
+        {"activa": True, "ruta_predeterminada": str(carpeta_contenido)},
+    )
+    resultado = runner.invoke(app, ["describir"])
+    assert resultado.exit_code == 1
+    assert "Traceback" not in resultado.output
+    assert "URL" in resultado.output
 
 
 def test_describir_tabla_ia(

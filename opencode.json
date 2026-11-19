@@ -39,6 +39,7 @@
       "git log *--ext-d*": "deny",
       "git show *--ext-d*": "deny",
       "git diff *--textc*": "deny",
+      "git diff *--no-i*": "deny",
       "git log *--textc*": "deny",
       "git show *--textc*": "deny",
       "git *>*": "deny"

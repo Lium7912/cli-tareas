@@ -100,13 +100,21 @@ def test_configuracion_ia_timeout_valido(
     assert configuracion_ia()["timeout"] == 5.0
 
 
-@pytest.mark.parametrize("valor", ["abc", "", "0", "-1", "nan", "inf"])
+@pytest.mark.parametrize("valor", ["abc", "0", "-1", "nan", "inf"])
 def test_configuracion_ia_timeout_invalido(
     env_ia, monkeypatch: pytest.MonkeyPatch, valor: str
 ) -> None:
     monkeypatch.setenv("TAREAS_IA_TIMEOUT", valor)
     with pytest.raises(ConfiguracionInvalidaError, match="mayor que 0"):
         configuracion_ia()
+
+
+@pytest.mark.parametrize("valor", ["", "   ", "\t"])
+def test_configuracion_ia_timeout_vacio_usa_defecto(
+    env_ia, monkeypatch: pytest.MonkeyPatch, valor: str
+) -> None:
+    monkeypatch.setenv("TAREAS_IA_TIMEOUT", valor)
+    assert configuracion_ia()["timeout"] == TIMEOUT_DEFECTO
 
 
 def test_configuracion_ia_sin_variables(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -207,6 +215,22 @@ def test_respuesta_json_invalida(urlopen_ok, config_ia) -> None:
 
     with pytest.raises(IANoDisponibleError, match="no es JSON válido"):
         pedir_descripcion(META, config_ia)
+
+
+def test_respuesta_no_utf8(urlopen_ok, config_ia) -> None:
+    urlopen_ok(b"\xff\xfe")
+
+    with pytest.raises(IANoDisponibleError, match="UTF-8"):
+        pedir_descripcion(META, config_ia)
+
+
+def test_url_invalida(config_ia) -> None:
+    config = {**config_ia, "api_base": "no-es-url", "api_key": "clave-secreta"}
+
+    with pytest.raises(ConfiguracionInvalidaError, match="URL") as excinfo:
+        pedir_descripcion(META, config)
+
+    assert "clave-secreta" not in str(excinfo.value)
 
 
 @pytest.mark.parametrize(
