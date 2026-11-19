@@ -31,7 +31,8 @@ no ejecutes comandos con efectos secundarios.
 2. Lee `AGENTS.md` y respétalo en todo momento.
 3. Analiza sin modificar nada:
    - `acciones.json` (acciones existentes y su formato).
-   - `src/cli_tareas/acciones.py` (bloques `ESQUEMAS` y `CLAVES_POSITIVAS`).
+   - `src/cli_tareas/acciones.py` (bloques `ESQUEMAS`, `CLAVES_POSITIVAS` y
+     `PREDETERMINADOS`).
    - `src/cli_tareas/main.py` (patrón de comandos Typer existentes y `_iniciar()`).
    - `docs/adr/ADR-0001.md` (decisiones de arquitectura vigentes).
 4. Determina si la petición crea una acción nueva o modifica una existente
@@ -44,8 +45,9 @@ Muestra al usuario una propuesta completa que incluya:
 1. **Entrada JSON**: clave nueva (inglés minúsculas, sin espacios), valor de
    `descripcion` (una frase en español, sin puntos), `activa` (por defecto
    `false` hasta confirmación) y el resto de claves específicas.
-2. **Esquema**: qué añadir en `ESQUEMAS` (tipos Python) y en
-   `CLAVES_POSITIVAS` (si hay enteros ≥ 1).
+2. **Esquema**: qué añadir en `ESQUEMAS` (tipos Python), en
+   `CLAVES_POSITIVAS` (si hay enteros ≥ 1) y en `PREDETERMINADOS` (si hay
+   claves opcionales). No se permiten claves fuera del esquema.
 3. **Comando Typer** en `main.py`: cómo usará `_iniciar()` y cómo soportará
    `--simular` con un mensaje claro del tipo «Se …ría…».
 4. **Pruebas previstas**: código en `tests/`; cualquier dato o fixture
@@ -69,8 +71,9 @@ Si el usuario ya aprobó el diseño y está en el agente Build, continúa aquí.
 Si no es así (sigues en agente plan), devuelve el control al final de la
 Fase 1 sin editar nada.
 
-1. Edita `acciones.json`, `ESQUEMAS`/`CLAVES_POSITIVAS`, el módulo de
-   presentación y `main.py`, siguiendo el patrón de las acciones existentes.
+1. Edita `acciones.json`, `ESQUEMAS`/`CLAVES_POSITIVAS`/`PREDETERMINADOS`,
+   el módulo de presentación y `main.py`, siguiendo el patrón de las acciones
+   existentes.
 2. Mantén PEP 8, type hints de Python 3.12, módulos pequeños y mensajes en
    español. Sin comentarios triviales ni secretos en el código.
 3. Ejecuta en este orden:

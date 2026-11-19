@@ -157,8 +157,8 @@ def listar(
     config, ruta_resuelta = _iniciar(
         "listar", ruta, simular, "Se listaría el contenido de: {ruta}"
     )
-    incluir_carpetas = bool(config.get("incluir_carpetas", True))
-    ordenar_por = str(config.get("ordenar_por", "nombre"))
+    incluir_carpetas = config["incluir_carpetas"]
+    ordenar_por = config["ordenar_por"]
     try:
         entradas = obtener_entradas(ruta_resuelta, incluir_carpetas)
         entradas = ordenar_entradas(entradas, ordenar_por)
@@ -184,7 +184,7 @@ def contar(
     config, ruta_resuelta = _iniciar(
         "contar", ruta, simular, "Se contarían los ficheros de: {ruta}"
     )
-    incluir_carpetas = bool(config.get("incluir_carpetas", False))
+    incluir_carpetas = config["incluir_carpetas"]
     try:
         conteo = contar_entradas(ruta_resuelta, incluir_carpetas)
     except ErrorAccion as exc:
@@ -227,7 +227,7 @@ def buscar(
     )
     try:
         resultados = buscar_entradas(ruta_resuelta, termino, extension)
-        max_resultados = config.get("max_resultados")
+        max_resultados = config["max_resultados"]
         total = len(resultados)
         resultados = limitar_resultados(resultados, max_resultados)
     except ErrorAccion as exc:
@@ -295,7 +295,7 @@ def describir(
         json_salida=json_salida,
         json_en_simulacion=True,
     )
-    max_ficheros = int(config.get("max_ficheros", 10))
+    max_ficheros = config["max_ficheros"]
     try:
         entradas = obtener_entradas(ruta_resuelta, incluir_carpetas=True)
         entradas = ordenar_entradas(entradas, "nombre")[:max_ficheros]
@@ -360,7 +360,7 @@ def clasificar(
         json_salida=json_salida,
         json_en_simulacion=True,
     )
-    max_ficheros = int(config.get("max_ficheros", 10))
+    max_ficheros = config["max_ficheros"]
     try:
         entradas = obtener_entradas(ruta_resuelta, incluir_carpetas=False)
         entradas = ordenar_entradas(entradas, "nombre")[:max_ficheros]

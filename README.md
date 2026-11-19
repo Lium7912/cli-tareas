@@ -7,7 +7,7 @@ CLI de línea de comandos para **gestionar tareas asistidas por IA**, desarrolla
 - Interfaz de terminal coherente, con ayuda autogenerada y salida formateada con tablas.
 - **Acciones configurables sin tocar el código fuente**, mediante `acciones.json`.
 - **Seguridad**: modo `--simular` para prever el efecto de una operación antes de ejecutarla, validación estricta de la configuración y límite de resultados.
-- **Calidad comprobable**: 138 pruebas automatizadas superadas y lint limpio con Ruff.
+- **Calidad comprobable**: 189 pruebas automatizadas superadas y lint limpio con Ruff.
 
 Funcionalidades actuales (todas de **solo lectura** sobre el sistema de ficheros):
 
@@ -337,7 +337,7 @@ uv run python -m cli_tareas.main listar C:\Users\Public
 - `max_resultados`: límite de resultados de `buscar` (debe ser un entero mayor que 0).
 - `max_ficheros`: límite de elementos que `describir` y `clasificar` procesan por orden (debe ser un entero mayor que 0). En `clasificar`, las carpetas no cuentan: solo se clasifican ficheros.
 
-La configuración se **valida estrictamente** al ejecutar cualquier acción (`src/cli_tareas/acciones.py`): existencia de la acción, que esté activa, tipos correctos de cada clave y valores positivos. Ante un error, la CLI muestra un mensaje claro y termina con código de salida 1.
+La configuración se **valida estrictamente** al ejecutar cualquier acción (`src/cli_tareas/acciones.py`): existencia de la acción y de su esquema, que esté activa, rechazo de claves desconocidas, tipos correctos de cada clave, valores positivos y valores permitidos para `ordenar_por`. Las claves opcionales ausentes se completan con los predeterminados declarados en `PREDETERMINADOS` (`listar`: `incluir_carpetas=true` y `ordenar_por=nombre`; `contar`: `incluir_carpetas=false`; `buscar`: sin límite de resultados; `describir` y `clasificar`: `max_ficheros=10`). Ante un error, la CLI muestra un mensaje claro y termina con código de salida 1.
 
 ## Estructura del proyecto
 
@@ -374,12 +374,12 @@ cli-tareas/
 │   ├── describir.py           # Tabla/JSON de describir (presentación)
 │   ├── clasificar.py          # Clasificación por extensión, tabla/JSON
 │   └── excepciones.py         # Jerarquía propia de errores (ErrorAccion)
-└── tests/                     # 138 pruebas automatizadas (pytest)
+└── tests/                     # 189 pruebas automatizadas (pytest)
 ```
 
 ## Pruebas automatizadas (pytest)
 
-Las pruebas cubren la lógica de acciones, la resolución de rutas, cada comando, el modo `--simular`, la desactivación de acciones, los errores de configuración, la clasificación determinista y la capa de IA (con la red simulada; nunca se llama a un servicio real en las pruebas):
+Las pruebas cubren la lógica de acciones, la validación estricta de `acciones.json`, la resolución de rutas, cada comando, el modo `--simular`, la desactivación de acciones, los errores de configuración, la clasificación determinista, la capa de IA (con la red simulada; nunca se llama a un servicio real en las pruebas) y la allowlist Git de `opencode.json` (sintaxis V1, orden de reglas y comandos permitidos/denegados):
 
 ```powershell
 uv run pytest
@@ -400,6 +400,7 @@ uv run ruff format .     # formato automático
 - **Modo simulación**: toda acción con efectos acepta `--simular`.
 - **Interruptor centralizado**: cualquier acción puede desactivarse con `activa: false`.
 - **Validación de configuración** antes de actuar, con errores controlados y código de salida 1 (sin trazas brutas).
+- **Git de solo lectura para los agentes**: `opencode.json` deniega Git por defecto y solo permite consultas concretas (`git status`, `git diff`, `git log`, `git show` y `git --version`). El resto de operaciones, incluidas `commit`, `push`, `reset`, `merge`, `switch`, `checkout` y las variantes con opciones globales (`-C`, `-c`, `--git-dir`), quedan bloqueadas para las herramientas del agente. Sintaxis y precedencia verificadas con OpenCode 1.18.35 (`opencode debug config` y `opencode agent list`). Es una medida de **defensa en profundidad**, no un aislamiento absoluto: rutas completas a `git.exe`, alias, envoltorios de PowerShell/CMD, pipes y otra configuración de Git pueden eludir los patrones (ver limitaciones). Los commits que ejecutes manualmente en PowerShell no se ven afectados.
 - **Alcance de solo lectura**: no existen acciones de escritura o borrado.
 - **Archivos de prueba mutables solo en `~/pruebas-tareas`**, nunca dentro del repo.
 - **Sin modo `--auto`** ni ejecución automática no supervisada; los commits y el push solo se hacen por petición explícita del usuario.
@@ -412,7 +413,7 @@ El desarrollo es **agéntico**, con [OpenCode](https://opencode.ai) guiado por `
 |---|---|
 | `read` | Permitido en general; **denegado** para `.env`, `.env.*`, `.pem`, `.key`, `.p12` (protección de secretos). |
 | `edit` | Con **confirmación del usuario**; denegado para los mismos tipos de archivo sensibles. |
-| `bash` | Con **confirmación del usuario**; **denegados** `git commit`, `git push`, `git reset`, `git restore`, `git checkout`, `git stash`, `git rebase` y `git clean` (operaciones de git de escritura). |
+| `bash` | Con **confirmación del usuario** para comandos generales (no se conceden permisos amplios). Git se **deniega por defecto**; solo se permiten consultas de solo lectura: `git status`, `git diff`, `git log`, `git show` y `git --version`. Se bloquean además las opciones que escriben o ejecutan filtros (`--output`, `--ext-diff`, `--textconv`) y las redirecciones de Git. |
 
 El registro de los prompts importantes del desarrollo se documenta en [`docs/prompts.md`](docs/prompts.md). La decisión de arquitectura de la capa de IA está en [`docs/adr/ADR-0002.md`](docs/adr/ADR-0002.md).
 
@@ -478,4 +479,5 @@ Las decisiones técnicas del proyecto están registradas en [`docs/adr/ADR-0001.
 - `ruta_predeterminada` apunta a `~/pruebas-tareas`, fuera del repo: la carpeta debe existir en cada máquina.
 - Añadir una acción nueva requiere tocar `acciones.json` **y** el bloque `ESQUEMAS` de `acciones.py` (duplicación parcial documentada en el ADR).
 - `acciones.json` no admite comentarios (limitación del formato JSON).
+- La allowlist Git de `opencode.json` es una medida de **defensa en profundidad**, no un aislamiento absoluto: rutas completas a `git.exe`, alias de Git, envoltorios de PowerShell/CMD y otros procesos pueden eludir los patrones de prefijo. Además, un pipe puede dividir el comando y evaluar por separado el programa de destino. Los commits manuales del usuario no están restringidos.
 - La integración con IA está preparada (`describir` y `clasificar`) pero pendiente de los datos de conexión de los modelos del centro (`TAREAS_API_BASE`/`TAREAS_MODELO`); hasta entonces funcionan el modo `--sin-ia` y el resto de acciones.

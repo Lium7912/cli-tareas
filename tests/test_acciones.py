@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pytest
+from typer.testing import CliRunner
 
 from cli_tareas.acciones import cargar_acciones, obtener_config
 from cli_tareas.excepciones import (
@@ -9,6 +10,9 @@ from cli_tareas.excepciones import (
     ConfiguracionInvalidaError,
 )
 from cli_tareas.ficheros import ordenar_entradas, resolver_ruta
+from cli_tareas.main import app
+
+runner = CliRunner()
 
 
 def test_cargar_acciones_valido() -> None:
@@ -69,6 +73,68 @@ def test_config_max_resultados_invalido() -> None:
 def test_config_valida_devuelve_dict() -> None:
     config = obtener_config("contar", {"contar": {"activa": True}})
     assert config["activa"] is True
+
+
+def test_config_clave_desconocida() -> None:
+    with pytest.raises(ConfiguracionInvalidaError, match="desconocida"):
+        obtener_config("contar", {"contar": {"activa": True, "clave_extra": 1}})
+
+
+def test_config_accion_sin_esquema() -> None:
+    with pytest.raises(ConfiguracionInvalidaError, match="esquema"):
+        obtener_config("inexistente", {"inexistente": {"activa": True}})
+
+
+def test_config_ordenar_por_invalido() -> None:
+    with pytest.raises(ConfiguracionInvalidaError, match="ordenar_por"):
+        obtener_config("listar", {"listar": {"activa": True, "ordenar_por": "peso"}})
+
+
+@pytest.mark.parametrize(
+    ("nombre", "esperados"),
+    [
+        ("listar", {"incluir_carpetas": True, "ordenar_por": "nombre"}),
+        ("contar", {"incluir_carpetas": False}),
+        ("buscar", {"max_resultados": None}),
+        ("describir", {"max_ficheros": 10}),
+        ("clasificar", {"max_ficheros": 10}),
+    ],
+)
+def test_config_aplica_predeterminados(nombre: str, esperados: dict) -> None:
+    config = obtener_config(nombre, {nombre: {"activa": True}})
+    for clave, valor in esperados.items():
+        assert config[clave] == valor
+
+
+def test_config_valores_explicitos_prevalecen() -> None:
+    config = obtener_config(
+        "listar",
+        {
+            "listar": {
+                "activa": True,
+                "incluir_carpetas": False,
+                "ordenar_por": "tamano",
+            }
+        },
+    )
+    assert config["incluir_carpetas"] is False
+    assert config["ordenar_por"] == "tamano"
+
+
+def test_cli_config_clave_desconocida(
+    carpeta_temporal: Path, acciones_temporales
+) -> None:
+    acciones_temporales(
+        "contar",
+        {
+            "activa": True,
+            "ruta_predeterminada": str(carpeta_temporal),
+            "clave_extra": 1,
+        },
+    )
+    resultado = runner.invoke(app, ["contar"])
+    assert resultado.exit_code == 1
+    assert "desconocida" in resultado.output.lower()
 
 
 def test_resolver_ruta_predeterminada(carpeta_temporal: Path) -> None:

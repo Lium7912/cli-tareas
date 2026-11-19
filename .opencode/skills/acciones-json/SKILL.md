@@ -32,14 +32,16 @@ repo) y se validan en `src/cli_tareas/acciones.py`. Nada se hardcodea.
 - Leer `docs/adr/ADR-0001.md` para respetar la arquitectura y no contradecir
   decisiones ya aceptadas.
 - Identificar si la petición modifica una acción existente (riesgo de romper
-  las 63 pruebas actuales) o crea una nueva.
+  las 189 pruebas actuales) o crea una nueva.
 
 ### 2. Diseñar y pedir aprobación
 Presentar al usuario un plan con:
 - Entrada JSON propuesta (claves `activa`, `descripcion`, `ruta_predeterminada`
   y las específicas; `activa` debe ser booleano).
 - Esquema a añadir en `ESQUEMAS` (tipos Python) y, si hay enteros con mínimo 1,
-  añadirlos a `CLAVES_POSITIVAS`.
+  añadirlos a `CLAVES_POSITIVAS`. Si la acción tiene claves opcionales,
+  declarar sus valores en `PREDETERMINADOS`. No se admiten claves fuera del
+  esquema: `validar_config` rechaza las desconocidas.
 - Comando Typer en `main.py` que use `_iniciar()` y soporte `--simular` con un
   mensaje «Se …ría…» claro, siguiendo el patrón de las acciones existentes.
 - Pruebas previstas (código en `tests/`, datos en `~/pruebas-tareas`).
@@ -48,7 +50,8 @@ Esperar aprobación explícita. Si el usuario duda, no editar nada.
 ### 3. Implementar (tras aprobación)
 - Editar `acciones.json` (la clave de acción nueva en inglés minúsculas, sin
   espacios; `activa: true` solo si el usuario lo confirma).
-- Añadir el esquema en `ESQUEMAS` y las claves positivas correspondientes.
+- Añadir el esquema en `ESQUEMAS`, las claves positivas correspondientes y,
+  si procede, los predeterminados en `PREDETERMINADOS`.
 - Crear el módulo de presentación en `src/cli_tareas/` (solo construcción de
   tablas/textos; E.S. de ficheros en `ficheros.py`) y el comando en `main.py`
   pasando por `_iniciar()`.
@@ -76,7 +79,10 @@ Esperar aprobación explícita. Si el usuario duda, no editar nada.
 ## Criterios de no romper lo existente
 - No renombrar ni reordenar claves de acciones existentes en `acciones.json`.
 - No cambiar la firma de `cargar_acciones()`, `obtener_config()` ni
-  `validar_config()`; solo extender `ESQUEMAS` / `CLAVES_POSITIVAS`.
+  `validar_config()`; solo extender `ESQUEMAS`, `CLAVES_POSITIVAS` y, si
+  aplica, `PREDETERMINADOS`.
+- Toda clave nueva debe estar declarada en el esquema de la acción; las
+  claves desconocidas se rechazan con `ConfiguracionInvalidaError`.
 - Toda acción debe poder desactivarse con `activa: false` sin errores.
 - Si alguna prueba falla tras el cambio, corregir ANTES de continuar y volver
   a ejecutar la suite completa.

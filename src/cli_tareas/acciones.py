@@ -51,6 +51,18 @@ ESQUEMAS: dict[str, dict[str, type]] = {
 
 CLAVES_POSITIVAS = {"max_resultados", "max_ficheros"}
 
+VALORES_VALIDOS: dict[str, set[str]] = {
+    "ordenar_por": {"nombre", "tamano", "modificado", "tipo"},
+}
+
+PREDETERMINADOS: dict[str, dict[str, object]] = {
+    "listar": {"incluir_carpetas": True, "ordenar_por": "nombre"},
+    "contar": {"incluir_carpetas": False},
+    "buscar": {"max_resultados": None},
+    "describir": {"max_ficheros": 10},
+    "clasificar": {"max_ficheros": 10},
+}
+
 
 def cargar_acciones(ruta: Path | None = None) -> dict:
     ruta = ruta if ruta is not None else RUTA_ACCIONES
@@ -74,6 +86,10 @@ def obtener_config(nombre: str, acciones: dict) -> dict:
         raise ConfiguracionInvalidaError(
             f"La configuración de «{nombre}» debe ser un objeto JSON"
         )
+    if nombre not in ESQUEMAS:
+        raise ConfiguracionInvalidaError(
+            f"La acción «{nombre}» no tiene esquema de validación"
+        )
     if not isinstance(config.get("activa"), bool):
         raise ConfiguracionInvalidaError(
             f"La clave «activa» de «{nombre}» debe ser un booleano"
@@ -81,11 +97,20 @@ def obtener_config(nombre: str, acciones: dict) -> dict:
     if not config["activa"]:
         raise AccionDesactivadaError(f"La acción «{nombre}» está desactivada")
     validar_config(nombre, config)
-    return config
+    return {**PREDETERMINADOS.get(nombre, {}), **config}
 
 
 def validar_config(nombre: str, config: dict) -> None:
-    esquema = ESQUEMAS.get(nombre, {})
+    esquema = ESQUEMAS.get(nombre)
+    if esquema is None:
+        raise ConfiguracionInvalidaError(
+            f"La acción «{nombre}» no tiene esquema de validación"
+        )
+    desconocidas = set(config) - set(esquema)
+    if desconocidas:
+        raise ConfiguracionInvalidaError(
+            f"Claves desconocidas en «{nombre}»: {', '.join(sorted(desconocidas))}"
+        )
     for clave, tipo in esquema.items():
         if clave not in config:
             continue
@@ -103,4 +128,10 @@ def validar_config(nombre: str, config: dict) -> None:
         if isinstance(valor, int) and not isinstance(valor, bool) and valor <= 0:
             raise ConfiguracionInvalidaError(
                 f"La clave «{clave}» de «{nombre}» debe ser mayor que 0"
+            )
+    for clave, permitidos in VALORES_VALIDOS.items():
+        if clave in config and config[clave] not in permitidos:
+            raise ConfiguracionInvalidaError(
+                f"La clave «{clave}» de «{nombre}» debe ser uno de: "
+                f"{', '.join(sorted(permitidos))}"
             )

@@ -69,7 +69,8 @@ Lee primero `AGENTS.md` y `opencode.json`; son la fuente de verdad. Revisa:
 1. **Calidad**: PEP 8/ruff, type hints 3.12, módulos pequeños, funciones puras,
    mensajes en español, sin comentarios triviales.
 2. **Configuración**: toda acción se lee de `acciones.json` (nada hardcodeado);
-   `ESQUEMAS` y `CLAVES_POSITIVAS` en síncronía; `activa` booleano; límites > 0.
+   `ESQUEMAS`, `CLAVES_POSITIVAS` y `PREDETERMINADOS` en síncronía; rechazo de
+   claves desconocidas; `activa` booleano; límites > 0.
 3. **Simulación y efectos**: cada acción con efectos respeta `--simular`
    (sin red ni escritura); la IA usa solo metadatos y nunca contenido.
 4. **Pruebas**: cubren comandos, `--simular`, `--sin-ia`, `--json` y errores;

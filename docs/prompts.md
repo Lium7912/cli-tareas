@@ -420,3 +420,123 @@ Recordatorios al añadir entradas:
 - **Aprobación realizada por el usuario:** aprobación definitiva del plan
   R-04 y R-05 en la conversación (texto citado arriba), con la decisión de
   incluir el refactor de `test_listar_ruta_predeterminada` y la entrada 5.6.
+
+### Entrada 5.7 — Revisión R-07 y R-08: allowlist Git y validación estricta
+
+- **Fecha:** 2026-11-18
+- **Objetivo:** cerrar los hallazgos R-07 (permisos de operaciones Git
+  peligrosas) y R-08 (claves desconocidas y predeterminados contradictorios)
+  sin cambiar el comportamiento de las seis acciones existentes.
+- **Texto del prompt:**
+  > «Apruebo el diseño R-08 y el enfoque de allowlist para R-07,
+  > condicionado a verificar la sintaxis y precedencia en OpenCode 1.18.35,
+  > comprobar comandos permitidos y bloqueados, documentar las limitaciones,
+  > mantener los permisos mínimos del subagente revisor e implementar R-08
+  > conservando los predeterminados y el comportamiento de las seis acciones.»
+- **Decisiones aprobadas:**
+  1. Sustituir la blocklist Git por una allowlist en `opencode.json`: Git
+     denegado por defecto y solo `git status`, `git diff`, `git log`,
+     `git show` y `git --version` permitidos.
+  2. Bloquear opciones de escritura o ejecución (`--output`, `--ext-diff`,
+     `--textconv`) y redirecciones de Git; el resto de bash sigue en `ask`.
+  3. Validación estricta en `acciones.py`: rechazo de acciones sin esquema y
+     de claves desconocidas, validación de `ordenar_por` y predeterminados
+     centralizados en `PREDETERMINADOS`.
+  4. Actualizar `main.py` para consumir la configuración ya validada y
+     fusionada, sin valores por defecto ocultos.
+  5. Añadir pruebas de seguridad de `opencode.json` y de validación de
+     acciones; actualizar README, ADR-0001, esta bitácora y la skill.
+- **Verificación de compatibilidad:** se revisó el código fuente de
+  OpenCode `v1.18.35`: `permission`/`bash` (V1), evaluación con `findLast`
+  (gana la última regla), `propertyOrder: "original"` al cargar la
+  configuración y comodines donde `*` también cubre el comando sin
+  argumentos. `opencode debug config` confirmó el orden resuelto.
+- **Archivos afectados:** modificados `opencode.json`,
+  `src/cli_tareas/acciones.py`, `src/cli_tareas/main.py`,
+  `tests/test_acciones.py`, `README.md`, `docs/adr/ADR-0001.md`,
+  `docs/prompts.md`, `.opencode/skills/acciones-json/SKILL.md` y
+  `.opencode/commands/nueva-accion.md`; creado
+  `tests/test_permisos_opencode.py`. Sin cambios en `acciones.json` ni en
+  los permisos propios del subagente `revisor`.
+- **Resultado obtenido:** `uv run ruff check .` sin errores;
+  `uv run ruff format --check .` sin cambios pendientes;
+  `uv run pytest -q` supera **185 pruebas**; `git diff --check` sin errores;
+  `git status --short` muestra únicamente los archivos previstos.
+- **Limitación documentada:** la allowlist es defensa en profundidad, no
+  aislamiento absoluto; rutas completas a `git.exe`, alias, envoltorios de
+  PowerShell/CMD y otros procesos pueden eludir los patrones. Los commits
+  manuales del usuario en PowerShell no están restringidos.
+- **Aprobación realizada por el usuario:** aprobación explícita del diseño
+  definitivo de la allowlist y de R-08 en la conversación (texto citado
+  arriba).
+
+### Entrada 5.8 — Implementación y verificación final de R-07 y R-08
+
+- **Fecha:** 2026-11-19
+- **Objetivo:** implementar y verificar la allowlist Git de solo lectura
+  (R-07) y la validación estricta de `acciones.json` (R-08), confirmando la
+  sintaxis y la precedencia en OpenCode 1.18.35, conservando los permisos
+  mínimos del subagente `revisor`, los predeterminados y el comportamiento
+  de las seis acciones.
+- **Texto del prompt (aprobación definitiva):**
+  > «Apruebo el diseño R-08 y el enfoque de allowlist para R-07,
+  > condicionado a las siguientes comprobaciones:
+  >
+  > 1. Verifica que la sintaxis de permisos y la precedencia de las reglas
+  >    allow/deny funcionan correctamente en OpenCode 1.18.35.
+  > 2. Comprueba que los comandos Git de solo lectura autorizados funcionan y
+  >    que commit, push, reset, merge, switch y las variantes con opciones
+  >    globales quedan bloqueados.
+  > 3. No presentes la allowlist como una protección absoluta si siguen
+  >    existiendo vías alternativas mediante git.exe, PowerShell, CMD o alias.
+  >    Documenta claramente esa limitación.
+  > 4. Mantén los permisos mínimos necesarios para el subagente revisor y no
+  >    amplíes permisos de ejecución generales.
+  > 5. Implementa R-08 conservando exactamente los valores predeterminados y
+  >    el comportamiento de las seis acciones existentes.
+  > 6. Ejecuta Ruff, pytest completo y las nuevas pruebas de seguridad y
+  >    validación.
+  > 7. Actualiza README.md, ADR-0001.md, docs/prompts.md y la documentación
+  >    de acciones-json según el plan.
+  > 8. No realices commits, push, reset ni utilices --auto.
+  >
+  > Puedes pasar a Build e implementar R-07 y R-08, pero si no puedes
+  > verificar la precedencia de permisos o detectas una incompatibilidad,
+  > detente y solicita mi aprobación antes de aplicar una alternativa.»
+- **Modelo utilizado:** `deepseek-v4.1-flash-free` mediante OpenCode 1.18.35.
+- **Comprobaciones de compatibilidad:** `opencode --version` devuelve
+  `1.18.35`; `opencode debug config` carga `opencode.json` y conserva el orden
+  de las reglas; `opencode agent list` muestra las reglas globales y las del
+  subagente `revisor` en el orden resuelto; `opencode debug agent revisor`
+  confirma `edit: deny`, `bash: "*": deny` y la allowlist mínima de Ruff,
+  pytest y consultas Git. La documentación oficial de OpenCode confirma que
+  gana la última regla coincidente y que un patrón terminado en ` *` cubre
+  también el comando sin argumentos.
+- **Comandos Git de solo lectura comprobados:** `git status --short`,
+  `git diff --check`, `git log --oneline -5`, `git show --stat --oneline -1`
+  y `git --version` se ejecutaron correctamente. No se ejecutaron `commit`,
+  `push`, `reset`, `merge`, `switch` ni otras operaciones destructivas: su
+  bloqueo se verifica con `tests/test_permisos_opencode.py` y la precedencia
+  resuelta, sin efectos sobre el repositorio.
+- **Archivos afectados:** modificados `opencode.json`,
+  `src/cli_tareas/acciones.py`, `src/cli_tareas/main.py`,
+  `tests/test_acciones.py`, `README.md`, `docs/adr/ADR-0001.md`,
+  `docs/prompts.md`, `.opencode/skills/acciones-json/SKILL.md` y
+  `.opencode/commands/nueva-accion.md`; creado
+  `tests/test_permisos_opencode.py`. Sin cambios en `acciones.json` ni en los
+  permisos del subagente `revisor`; tampoco se conceden permisos generales de
+  bash.
+- **Resultado obtenido:** `uv run ruff check .` sin errores;
+  `uv run ruff format --check .` sin cambios pendientes; `uv run pytest -q`
+  supera **189 pruebas** (185 anteriores + 4 casos nuevos de operaciones
+  destructivas y `git.exe`); `uv run pytest tests/test_permisos_opencode.py
+  tests/test_acciones.py -q` supera **67 pruebas** de seguridad y validación;
+  las seis acciones responden a `--simular` y `--help` muestra los seis
+  comandos; `git diff --check` sin errores y `git status --short` muestra
+  únicamente los archivos previstos. La allowlist se documenta como defensa
+  en profundidad, no como aislamiento absoluto: rutas completas a `git.exe`,
+  alias, PowerShell/CMD, pipes y otra configuración de Git pueden eludir los
+  patrones.
+- **Aprobación realizada por el usuario:** aprobación explícita en la
+  conversación (texto citado arriba), tras presentar el diseño definitivo de
+  la allowlist y de R-08.
